@@ -1,12 +1,11 @@
 import type { PluginOptions } from 'claude-code'
 
-import type { AutoStyle, Backend, Engine, Language, Mode, Settings } from './types'
+import type { AutoStyle, Backend, Engine, Mode, Settings } from './types'
 
 const MODES: readonly Mode[] = ['coach', 'auto', 'off']
 const STYLES: readonly AutoStyle[] = ['append', 'rewrite']
 const BACKENDS: readonly Backend[] = ['session', 'api_key']
 const ENGINES: readonly Engine[] = ['fork', 'complete']
-const LANGUAGES: readonly Language[] = ['zh-TW', 'en']
 
 function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
   return typeof value === 'string' && (allowed as readonly string[]).includes(value) ? (value as T) : fallback
@@ -42,7 +41,6 @@ export function readSettings(options: PluginOptions | undefined): Settings {
     minChars: numberIn(o.min_chars, 0, 2000, 8),
     forkMaxTokens: numberIn(o.fork_max_tokens, 1000, 2_000_000, 200_000),
     isHeadlessIncluded: o.headless === true,
-    language: oneOf(o.language, LANGUAGES, 'zh-TW'),
   }
 }
 

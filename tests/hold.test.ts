@@ -47,6 +47,8 @@ type Sent = { text?: string; context?: readonly string[]; drop?: string }
 function world(on: On, w: World = {}) {
   const clock = mock.clock(on)
   mock.env(on, {})
+  mock.store(on)
+  on('session.id', () => ({ value: 'session-1' }))
   const calls = { fork: 0, opens: 0, closes: [] as string[], asks: 0, fills: [] as string[] }
   const answered = (text: string): ModelCompleteResult => ({ isAnswered: true, text, usage: USAGE })
 

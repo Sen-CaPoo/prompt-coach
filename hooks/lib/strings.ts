@@ -6,33 +6,11 @@ import type { AdditionKind, CheckId, Language } from './types'
  * Claude Code heads a plugin's transcript rows, toasts and command output
  * with the plugin's name, so those strings do not repeat it. The card, the
  * dialog question and a drop notice are shown bare, so they name the coach.
+ *
+ * The names and descriptions of the settings are not here: each build's
+ * marketplace entry carries them in its own language.
  */
-/** A `userConfig` field `/config` lists; `api_key` is secret, so it is never a row there. */
-export type ConfigField =
-  | 'mode'
-  | 'auto_style'
-  | 'pass_score'
-  | 'backend'
-  | 'engine'
-  | 'fork_effort'
-  | 'review_model'
-  | 'api_base_url'
-  | 'timeout_seconds'
-  | 'min_chars'
-  | 'fork_max_tokens'
-  | 'headless'
-  | 'language'
-
-export type ConfigText = { label: string; description: string }
-
 export type Strings = {
-  /**
-   * The `/config` rows of this plugin's fields, a row in one language. Keep
-   * plugin.json in step: its `title` is `<en>／<zh>`, its `description` the
-   * English line, a newline, then the Chinese one; screens that read the
-   * manifest itself (`/plugin configure`, the install) show both.
-   */
-  config: Record<ConfigField, ConfigText>
   name: string
   commandDescription: string
   commandHint: string
@@ -77,47 +55,6 @@ export type Strings = {
 }
 
 const zhTW: Strings = {
-  config: {
-    mode: { label: '模式', description: 'coach：顯示評審結果，由我決定怎麼送出。auto：不詢問，直接套用。off：不處理。' },
-    auto_style: {
-      label: '自動模式的做法',
-      description: 'append：保留我打的原文，附加只有 Claude 讀得到的補充。rewrite：把 prompt 換成改寫後的版本。',
-    },
-    pass_score: { label: '通過分數', description: '教練模式下，分數達到這個值（0–100）就直接送出，不詢問。' },
-    backend: {
-      label: '評審後端',
-      description: 'session：透過 Claude Code 自己的連線評審（你的訂閱方案、API key 或雲端供應商）。api_key：用下方的金鑰呼叫 Messages API 評審。',
-    },
-    engine: {
-      label: 'session 的評審方式',
-      description: 'fork：由 session 的模型帶著完整對話評審，沿用 prompt cache。complete：另外呼叫一次，只看得到對話摘要。',
-    },
-    fork_effort: {
-      label: 'fork 評審的 effort',
-      description:
-        'low：評審指定低 effort，最快。session：不指定，照 session 的 effort 執行；你的模型或供應商只能對整個請求設定 effort 時選這個，否則每次評審會把對話重寫一份 prompt cache。',
-    },
-    review_model: {
-      label: '評審模型',
-      description: 'complete 與 api_key 後端用的模型：session（session 正在用的模型）、haiku、sonnet、opus、fable，或完整模型 ID。',
-    },
-    api_base_url: { label: 'API 網址', description: 'api_key 後端送出請求的網址。' },
-    timeout_seconds: { label: '評審逾時（秒）', description: '評審超過這個秒數，就照原文送出。' },
-    min_chars: { label: '最短評審長度', description: '比這個字元數短的 prompt 不呼叫模型評審，即時掃描照常執行。' },
-    fork_max_tokens: {
-      label: 'fork 的對話上限',
-      description: '對話超過這個 context tokens 數時改用 complete，評審成本就不會跟著對話成長。',
-    },
-    headless: {
-      label: '評審 claude -p 與 SDK 的 prompt',
-      description: '預設關閉：只評審在輸入框打的 prompt。教練模式不會攔住無頭模式的 prompt。',
-    },
-    // Keeps the English name too, so whoever cannot read Chinese still finds the switch.
-    language: {
-      label: '介面語言（Interface language）',
-      description: '卡片、對話紀錄裡的附註、指令輸出，以及 /config 裡這些設定的名稱與說明所用的語言。',
-    },
-  },
   name: '提示詞教練',
   commandDescription: '提示詞教練：切換模式（coach／auto／off）、自動模式的做法（append／rewrite），或查看狀態與上一次的評審',
   commandHint: '[coach|auto|off|append|rewrite|status|last]',
@@ -187,51 +124,6 @@ const zhTW: Strings = {
 }
 
 const en: Strings = {
-  config: {
-    mode: { label: 'Mode', description: 'coach: show the review and let me choose. auto: apply it without asking. off: do nothing.' },
-    auto_style: {
-      label: 'Auto mode style',
-      description: 'append: leave my words as typed and attach notes only Claude reads. rewrite: replace my prompt with the improved version.',
-    },
-    pass_score: { label: 'Pass score', description: 'Coach mode sends a prompt without asking when it scores at least this much (0-100).' },
-    backend: {
-      label: 'Review backend',
-      description:
-        "session: review through Claude Code's own connection (your plan, API key or cloud provider). api_key: review through the Messages API with the key below.",
-    },
-    engine: {
-      label: 'Session review engine',
-      description:
-        "fork: the session's own model reviews with the whole conversation in view, reusing its prompt cache. complete: a separate call that sees only a digest of the conversation.",
-    },
-    fork_effort: {
-      label: 'Effort of a fork review',
-      description:
-        "low: the review asks for low effort, the quickest. session: it names no level and runs at the session's; choose this when your model or provider takes effort for a whole request only, where a different level writes the conversation to the prompt cache again.",
-    },
-    review_model: {
-      label: 'Review model',
-      description: 'Model for the complete engine and the api_key backend: session (the model the session runs), haiku, sonnet, opus, fable, or a full model id.',
-    },
-    api_base_url: { label: 'API base URL', description: 'Where the api_key backend sends requests.' },
-    timeout_seconds: { label: 'Review timeout (seconds)', description: 'When a review takes longer than this, the prompt is sent as typed.' },
-    min_chars: {
-      label: 'Shortest prompt to review',
-      description: 'Prompts shorter than this many characters skip the model review. The instant pattern check still runs.',
-    },
-    fork_max_tokens: {
-      label: 'Largest conversation to fork',
-      description: 'Past this many context tokens the review uses the complete engine, so its cost stops growing with the conversation.',
-    },
-    headless: {
-      label: 'Review prompts from claude -p and the SDK',
-      description: 'Off by default: only prompts typed at the prompt box are reviewed. Coach mode never holds a headless prompt.',
-    },
-    language: {
-      label: 'Interface language',
-      description: 'Language of the card, the notes in the transcript, the command output and the names of these settings in /config.',
-    },
-  },
   name: 'Prompt Coach',
   commandDescription: 'Prompt Coach: switch mode (coach, auto, off) or auto style (append, rewrite), or show status and the last review',
   commandHint: '[coach|auto|off|append|rewrite|status|last]',
@@ -282,7 +174,7 @@ const en: Strings = {
   modeNames: { coach: 'coach', auto: 'auto', off: 'off' },
   styleNames: { append: 'append', rewrite: 'rewrite' },
   status: l =>
-    `Mode: ${l.mode}\nAuto style: ${l.style}\nReview engine: ${l.engine}\nModel: ${l.model} (rules: ${l.profile})\nEffort: ${l.effort}\nSwitching here lasts for this session. To change the defaults, run /plugin configure prompt-coach@prompt-coach, or edit them in /config.`,
+    `Mode: ${l.mode}\nAuto style: ${l.style}\nReview engine: ${l.engine}\nModel: ${l.model} (rules: ${l.profile})\nEffort: ${l.effort}\nSwitching here lasts for this session. To change the defaults, run /plugin configure prompt-coach-en@prompt-coach, or edit them in /config.`,
   switched: (mode, modeName, styleName) => `This session now runs in ${modeName} mode${mode === 'auto' ? ` (${styleName})` : ''}.`,
   unknownWord: word => `Unknown word "${word}". Try: coach, auto, off, append, rewrite, status, last.`,
   noLast: 'No prompt has been reviewed in this session yet.',
@@ -302,11 +194,6 @@ const en: Strings = {
 
 export function stringsFor(language: Language): Strings {
   return language === 'en' ? en : zhTW
-}
-
-/** The words for one of this plugin's `/config` rows, or undefined to keep the manifest's. */
-export function configText(s: Strings, field: string): ConfigText | undefined {
-  return Object.hasOwn(s.config, field) ? s.config[field as ConfigField] : undefined
 }
 
 /** The words for why a rewrite was refused; `lost:<span>` and `new:<span>` name the span. */

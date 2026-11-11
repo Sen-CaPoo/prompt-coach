@@ -22,7 +22,6 @@ export type Settings = {
   minChars: number
   forkMaxTokens: number
   isHeadlessIncluded: boolean
-  language: Language
 }
 
 export type CheckId = 'goal' | 'done' | 'reference' | 'scope' | 'context'

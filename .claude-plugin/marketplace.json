@@ -7,10 +7,259 @@
     {
       "name": "prompt-coach",
       "source": "./",
-      "description": "Reviews each prompt before it is sent, against Anthropic's prompting guidance for the session's model and effort level."
+      "strict": false,
+      "version": "0.2.0",
+      "description": "送出前，依 session 的模型與 effort，對照 Anthropic 的提示詞指引評審每一則 prompt。教練模式顯示結果讓你選，自動模式直接套用。介面為正體中文；英文版是 prompt-coach-en。",
+      "author": {
+        "name": "Sen-CaPoo"
+      },
+      "license": "MIT",
+      "types": "./types/index.d.ts",
+      "hooks": "./hooks/zh.json",
+      "keywords": [
+        "mods",
+        "prompting",
+        "prompt-engineering"
+      ],
+      "userConfig": {
+        "mode": {
+          "type": "string",
+          "title": "模式",
+          "description": "coach：顯示評審結果，由我決定怎麼送出。auto：不詢問，直接套用。off：不處理。預設：coach",
+          "options": [
+            "coach",
+            "auto",
+            "off"
+          ],
+          "default": "coach"
+        },
+        "auto_style": {
+          "type": "string",
+          "title": "自動模式的做法",
+          "description": "append：保留我打的原文，附加只有 Claude 讀得到的補充。rewrite：把 prompt 換成改寫後的版本。預設：append",
+          "options": [
+            "append",
+            "rewrite"
+          ],
+          "default": "append"
+        },
+        "pass_score": {
+          "type": "number",
+          "title": "通過分數",
+          "description": "教練模式下，分數達到這個值（0–100）就直接送出，不詢問。預設：85",
+          "default": 85,
+          "min": 0,
+          "max": 100
+        },
+        "backend": {
+          "type": "string",
+          "title": "評審後端",
+          "description": "session：透過 Claude Code 自己的連線評審（你的訂閱方案、API key 或雲端供應商）。api_key：用下方的金鑰呼叫 Messages API 評審。預設：session",
+          "options": [
+            "session",
+            "api_key"
+          ],
+          "default": "session"
+        },
+        "engine": {
+          "type": "string",
+          "title": "session 的評審方式",
+          "description": "fork：由 session 的模型帶著完整對話評審，沿用 prompt cache。complete：另外呼叫一次，只看得到對話摘要。預設：fork",
+          "options": [
+            "fork",
+            "complete"
+          ],
+          "default": "fork"
+        },
+        "fork_effort": {
+          "type": "string",
+          "title": "fork 評審的 effort",
+          "description": "low：評審指定低 effort，最快。session：不指定，照 session 的 effort 執行；你的模型或供應商只能對整個請求設定 effort 時選這個，否則每次評審會把對話重寫一份 prompt cache。預設：low",
+          "options": [
+            "low",
+            "session"
+          ],
+          "default": "low"
+        },
+        "review_model": {
+          "type": "string",
+          "title": "評審模型",
+          "description": "complete 與 api_key 後端用的模型：session（session 正在用的模型）、haiku、sonnet、opus、fable，或完整模型 ID。預設：session",
+          "default": "session"
+        },
+        "api_key": {
+          "type": "string",
+          "title": "Anthropic API 金鑰",
+          "description": "只有 api_key 後端會用。也可以改設環境變數 PROMPT_COACH_API_KEY。預設：不設定",
+          "sensitive": true
+        },
+        "api_base_url": {
+          "type": "string",
+          "title": "API 網址",
+          "description": "api_key 後端送出請求的網址。預設：https://api.anthropic.com",
+          "default": "https://api.anthropic.com"
+        },
+        "timeout_seconds": {
+          "type": "number",
+          "title": "評審逾時（秒）",
+          "description": "評審超過這個秒數，就照原文送出。預設：25",
+          "default": 25,
+          "min": 5,
+          "max": 120
+        },
+        "min_chars": {
+          "type": "number",
+          "title": "最短評審長度",
+          "description": "比這個字元數短的 prompt 不呼叫模型評審，即時掃描照常執行。預設：8",
+          "default": 8,
+          "min": 0,
+          "max": 2000
+        },
+        "fork_max_tokens": {
+          "type": "number",
+          "title": "fork 的對話上限",
+          "description": "對話超過這個 context tokens 數時改用 complete，評審成本就不會跟著對話成長。預設：200000",
+          "default": 200000,
+          "min": 1000,
+          "max": 2000000
+        },
+        "headless": {
+          "type": "boolean",
+          "title": "評審 claude -p 與 SDK 的 prompt",
+          "description": "關閉時只評審在輸入框打的 prompt。教練模式不會攔住無頭模式的 prompt。預設：關閉",
+          "default": false
+        }
+      }
+    },
+    {
+      "name": "prompt-coach-en",
+      "source": "./",
+      "strict": false,
+      "version": "0.2.0",
+      "description": "Reviews each prompt before it is sent, against Anthropic's prompting guidance for the session's model and effort level. Coach mode shows the findings and lets you choose; auto mode applies them. English interface; the Traditional Chinese build is prompt-coach.",
+      "author": {
+        "name": "Sen-CaPoo"
+      },
+      "license": "MIT",
+      "types": "./types/index.d.ts",
+      "hooks": "./hooks/en.json",
+      "keywords": [
+        "mods",
+        "prompting",
+        "prompt-engineering"
+      ],
+      "userConfig": {
+        "mode": {
+          "type": "string",
+          "title": "Mode",
+          "description": "coach: show the review and let me choose. auto: apply it without asking. off: do nothing. Default: coach",
+          "options": [
+            "coach",
+            "auto",
+            "off"
+          ],
+          "default": "coach"
+        },
+        "auto_style": {
+          "type": "string",
+          "title": "Auto mode style",
+          "description": "append: leave my words as typed and attach notes only Claude reads. rewrite: replace my prompt with the improved version. Default: append",
+          "options": [
+            "append",
+            "rewrite"
+          ],
+          "default": "append"
+        },
+        "pass_score": {
+          "type": "number",
+          "title": "Pass score",
+          "description": "Coach mode sends a prompt without asking when it scores at least this much (0-100). Default: 85",
+          "default": 85,
+          "min": 0,
+          "max": 100
+        },
+        "backend": {
+          "type": "string",
+          "title": "Review backend",
+          "description": "session: review through Claude Code's own connection (your plan, API key or cloud provider). api_key: review through the Messages API with the key below. Default: session",
+          "options": [
+            "session",
+            "api_key"
+          ],
+          "default": "session"
+        },
+        "engine": {
+          "type": "string",
+          "title": "Session review engine",
+          "description": "fork: the session's own model reviews with the whole conversation in view, reusing its prompt cache. complete: a separate call that sees only a digest of the conversation. Default: fork",
+          "options": [
+            "fork",
+            "complete"
+          ],
+          "default": "fork"
+        },
+        "fork_effort": {
+          "type": "string",
+          "title": "Effort of a fork review",
+          "description": "low: the review asks for low effort, the quickest. session: it names no level and runs at the session's; choose this when your model or provider takes effort for a whole request only, where a different level writes the conversation to the prompt cache again. Default: low",
+          "options": [
+            "low",
+            "session"
+          ],
+          "default": "low"
+        },
+        "review_model": {
+          "type": "string",
+          "title": "Review model",
+          "description": "Model for the complete engine and the api_key backend: session (the model the session runs), haiku, sonnet, opus, fable, or a full model id. Default: session",
+          "default": "session"
+        },
+        "api_key": {
+          "type": "string",
+          "title": "Anthropic API key",
+          "description": "Used only by the api_key backend. The PROMPT_COACH_API_KEY environment variable works too. Default: none",
+          "sensitive": true
+        },
+        "api_base_url": {
+          "type": "string",
+          "title": "API base URL",
+          "description": "Where the api_key backend sends requests. Default: https://api.anthropic.com",
+          "default": "https://api.anthropic.com"
+        },
+        "timeout_seconds": {
+          "type": "number",
+          "title": "Review timeout (seconds)",
+          "description": "When a review takes longer than this, the prompt is sent as typed. Default: 25",
+          "default": 25,
+          "min": 5,
+          "max": 120
+        },
+        "min_chars": {
+          "type": "number",
+          "title": "Shortest prompt to review",
+          "description": "Prompts shorter than this many characters skip the model review. The instant pattern check still runs. Default: 8",
+          "default": 8,
+          "min": 0,
+          "max": 2000
+        },
+        "fork_max_tokens": {
+          "type": "number",
+          "title": "Largest conversation to fork",
+          "description": "Past this many context tokens the review uses the complete engine, so its cost stops growing with the conversation. Default: 200000",
+          "default": 200000,
+          "min": 1000,
+          "max": 2000000
+        },
+        "headless": {
+          "type": "boolean",
+          "title": "Review prompts from claude -p and the SDK",
+          "description": "When off, only prompts typed at the prompt box are reviewed. Coach mode never holds a headless prompt. Default: off",
+          "default": false
+        }
+      }
     }
   ],
   "metadata": {
-    "description": "Prompt Coach: a Claude Code mod that reviews each prompt before it is sent."
+    "description": "Prompt Coach: a Claude Code mod that reviews each prompt before it is sent. prompt-coach is the Traditional Chinese build, prompt-coach-en the English one; install one of them."
   }
 }

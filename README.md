@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="版本 0.1.1" src="https://img.shields.io/badge/version-0.1.1-0072CE">
+  <img alt="版本 0.2.0" src="https://img.shields.io/badge/version-0.2.0-0072CE">
   <img alt="Claude Code 2.1.287 以上" src="https://img.shields.io/badge/Claude%20Code-2.1.287%2B-13202F">
   <img alt="MIT 授權" src="https://img.shields.io/badge/license-MIT-2E8B87">
 </p>
@@ -18,25 +18,37 @@
 不想自己動手的話，把下面這段貼給 Claude Code，它會幫你裝好：
 
 ```text
-請幫我安裝 Claude Code 外掛 prompt-coach（提示詞教練）。
-1. 執行 claude plugin marketplace add Sen-CaPoo/prompt-coach
-2. 執行 claude plugin install prompt-coach@prompt-coach
-3. 告訴我安裝結果，並提醒我在 Claude Code 裡輸入 /reload-plugins 或重新啟動。
-4. 用一兩句話說明 /prompt-coach status、/prompt-coach auto、/prompt-coach off 的用途。
+請幫我安裝 Claude Code 外掛「提示詞教練」（Prompt Coach）。
+1. 先問我要哪一種介面語言，等我回答再繼續：正體中文，或 English。
+2. 執行 claude plugin marketplace add Sen-CaPoo/prompt-coach
+3. 正體中文裝 prompt-coach，English 裝 prompt-coach-en：
+   claude plugin install <外掛名稱>@prompt-coach
+4. 執行 claude plugin list。如果另一個語言的版本也裝著，用 claude plugin uninstall <另一個外掛名稱>@prompt-coach 移除；兩個同時裝，每則 prompt 會被評審兩次。
+5. 告訴我安裝結果，並提醒我在 Claude Code 裡輸入 /reload-plugins 或重新啟動。
+6. 用我選的語言，以一兩句話說明 /prompt-coach status、/prompt-coach auto、/prompt-coach off 的用途。
 不要修改其他設定。
 ```
 
 ## 自己安裝
 
+介面語言跟著安裝的版本走，兩個版本只裝一個：
+
+| 版本 | 外掛名稱 | 介面 |
+| --- | --- | --- |
+| 正體中文 | `prompt-coach` | 卡片、附註、指令輸出、設定畫面都是正體中文 |
+| English | `prompt-coach-en` | 同上，全部是英文 |
+
 | 步驟 | 在 Claude Code 裡輸入 | 完成的樣子 |
 | --- | --- | --- |
 | 1 | `/plugin marketplace add Sen-CaPoo/prompt-coach` | 顯示已加入 marketplace |
-| 2 | `/plugin install prompt-coach@prompt-coach` | 顯示 `Installed prompt-coach` |
+| 2 | `/plugin install prompt-coach@prompt-coach`（英文版：`prompt-coach-en@prompt-coach`） | 顯示 `Installed prompt-coach`（或 `prompt-coach-en`） |
 | 3 | `/reload-plugins` | 輸入 `/prompt-coach status` 會回報目前模式 |
+
+要換語言：先 `/plugin uninstall` 目前的版本，再裝另一個。兩個版本的設定分開存放，換過去要重新設定。
 
 需要 Claude Code 2.1.287 以上。在 2.1.322（Windows）實測。
 
-想先試用不安裝：把這個 repo 抓下來，用 `claude --plugin-dir <資料夾>` 啟動，只對那一個 session 有效。
+想先試用不安裝：把這個 repo 抓下來，在資料夾裡執行 `node scripts/manifest.mjs`（英文版加 `en`）產生 `plugin.json`，再用 `claude --plugin-dir <資料夾>` 啟動，只對那一個 session 有效。
 
 ## 兩種模式
 
@@ -104,9 +116,11 @@
 | `/prompt-coach off` | 這個 session 停用 |
 | `/prompt-coach last` | 上一次評審的完整內容：每項檢查、建議、沒被採用的改寫與原因 |
 
-指令只影響目前的 session（存在 session 狀態裡，`/reload-plugins` 後仍有效）。要改預設值，輸入 `/plugin configure prompt-coach@prompt-coach`，或到 `/config` 調整 prompt-coach 的設定。
+指令只影響目前的 session（每個 session 在外掛的 store 裡存一筆，`/reload-plugins` 後仍有效）。要改預設值，輸入 `/plugin configure prompt-coach@prompt-coach`（英文版是 `prompt-coach-en@prompt-coach`），或到 `/config` 調整。
 
 ## 設定
+
+兩個版本的設定項目與預設值相同，只有名稱與說明的語言不同。每項說明的最後都標了預設值；沒有設定的項目一律套用預設值。
 
 | 設定 | 預設 | 說明 |
 | --- | --- | --- |
@@ -123,7 +137,6 @@
 | `min_chars` | `8` | 比這個短的 prompt 不呼叫模型評審 |
 | `fork_max_tokens` | `200000` | 對話超過這個大小改用 `complete`，避免評審成本跟著對話成長 |
 | `headless` | `false` | 是否也評審 `claude -p` 與 SDK 送出的 prompt |
-| `language` | `zh-TW` | 介面語言：`zh-TW` 或 `en`。`/config` 裡這些設定的名稱也跟著切換 |
 
 ## 它怎麼運作
 
@@ -192,16 +205,23 @@ Opus 5.5、Fable 5.2、Sonnet 5.5、Haiku 5.5 各有一個規則模組；其他�
 
 ## 開發
 
+兩個版本的 manifest 寫在 `.claude-plugin/marketplace.json` 的兩個項目裡（`strict: false`）。repo 不提交 `plugin.json`：資料夾裡有 `plugin.json` 時，Claude Code 會改讀它，兩個版本就會拿到同一份設定畫面。本機測試前先用腳本產生：
+
 ```bash
+node scripts/manifest.mjs       # 產生中文版的 plugin.json（英文版：node scripts/manifest.mjs en），並檢查兩個版本只差在文字
 claude plugin validate .        # 檢查 manifest 與 hooks
-claude plugin test .            # 88 個測試
+claude plugin test .            # 87 個測試（以中文版執行）
 claude --plugin-dir .           # 載入這個資料夾試用（第一次載入後才有型別檔）
 npx -p typescript tsc -p .      # 型別檢查
 claude --debug                  # 每次評審會在 debug log 留一行 [prompt-coach] reviewed ...
 ```
 
+改設定項目時，兩個項目要一起改；預設值、選項、範圍不一致時，`manifest.mjs` 會擋下。
+
 ```text
-hooks/register.tsx     事件接線：prompt.submit、turn.step、ui.render、command.run、config.describe
+hooks/coach.tsx        事件接線：prompt.submit、turn.step、ui.render、command.run（兩個版本共用）
+hooks/register.tsx     中文版的進入點（hooks/zh.json）
+hooks/register.en.tsx  英文版的進入點（hooks/en.json）
 hooks/lib/lint.ts      即時掃描
 hooks/lib/request.ts   組評審請求
 hooks/lib/engine.ts    fork／complete／API key 三種呼叫
@@ -213,7 +233,8 @@ hooks/lib/card.tsx     卡片
 hooks/lib/wait.ts      等你決定時的等待方式
 hooks/lib/strings.ts   介面文字（zh-TW／en）
 rules/                 通用規則與各模型模組
-types/index.d.ts       session 狀態的型別宣告
+types/index.d.ts       指令切換值的型別
+scripts/manifest.mjs   從 marketplace 項目產生本機測試用的 plugin.json
 tests/                 logic（純邏輯）、flow（各模式流程）、hold（卡片與等待）
 ```
 
@@ -226,7 +247,10 @@ tests/                 logic（純邏輯）、flow（各模式流程）、hold�
 - 執行中途插話的 prompt 不評審。評審進行中再送的 prompt 由 Claude Code 排進佇列，不會同時評審兩則。
 - 整段改寫後，Claude Code 對貼上內容的標記是否保留，沒有辦法從 mod 這一側確認；在意這點請用只附加。
 - `api_key` 後端只驗證過請求格式與失敗時放行，沒有用真實金鑰跑過成功路徑。
-- `/config` 裡設定的名稱會跟著 `language` 切換，改完立即生效。`/plugin configure` 與安裝時的設定畫面直接讀 `plugin.json`，不會切換，所以 `plugin.json` 的名稱與說明寫成中英並列；在 `/config` 點進單一設定後，名稱下方那行說明也是這段中英並列的文字（2.1.322 終端機實測）。
+- 設定畫面的語言由安裝的版本決定，不能在設定裡切換：`/plugin configure`、安裝時的設定畫面與 `/config` 都直接讀該版本的 manifest（2.1.322 終端機實測，兩個版本都只顯示一種語言）。
+- `/plugin configure` 與安裝時的表單裡，數字與文字欄位沒設定過就是空白，不會顯示預設值，這是 Claude Code 的表單行為；實際執行時仍套用預設值，`/config` 清單也會列出預設值。所以每項說明的最後都標了預設值。
+- 兩個版本同時安裝時，每則 prompt 會被評審兩次，兩個版本也都會註冊 `/prompt-coach`。請只裝一個。
+- 用 `--resume` 接回同一個 session 時，先前用 `/prompt-coach` 切換的模式可能仍然有效。
 - mod API 仍可能隨 Claude Code 版本變動。升版後請跑一次 `claude plugin validate .` 與 `claude plugin test .`。
 - 組織若在 managed settings 設了 `allowManagedModsOnly`，使用者自己裝的 mod 不會執行。
 

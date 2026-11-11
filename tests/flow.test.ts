@@ -43,6 +43,8 @@ type World = {
   fork?: ModelForkResult
   complete?: ModelCompleteResult
   ask?: string
+  /** What the plugin's store holds at the start. */
+  store?: Record<string, unknown>
 }
 
 /** Everything Claude Code would answer, with counters for what the mod called. */
@@ -64,6 +66,21 @@ function world(on: On, w: World = {}) {
   // wait command is seen to wait, so coach mode asks through the dialog.
   const clock = mock.clock(on)
   mock.env(on, {})
+  // The plugin's store, in memory and in view of the test.
+  const store = new Map<string, unknown>(Object.entries(w.store ?? {}))
+  on('store.get', (_, e) => ({ value: store.get(e.key) }))
+  on('store.set', (_, e) => {
+    store.set(e.key, e.value)
+
+    return { value: undefined }
+  })
+  on('store.delete', (_, e) => {
+    store.delete(e.key)
+
+    return { value: undefined }
+  })
+  on('store.keys', () => ({ value: [...store.keys()] }))
+  on('session.id', () => ({ value: 'session-1' }))
   on('session.model', () => ({ value: w.model ?? 'claude-sonnet-5-5' }))
   on('session.surface', () => ({ value: w.surface === undefined ? 'terminal' : w.surface }))
   on('session.messages', () => ({ value: ROWS }))
@@ -108,7 +125,7 @@ function world(on: On, w: World = {}) {
   })
   on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
 
-  return Object.assign(calls, { clock })
+  return Object.assign(calls, { clock, store })
 }
 
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as const
@@ -458,6 +475,30 @@ describe('coach mode, asking through the dialog', () => {
 })
 
 describe('/prompt-coach', () => {
+  // The switch lives in the plugin's store, one entry per session, so a reload
+  // of the module keeps it; another session's entry, or one unreadable, counts for nothing.
+  test('keeps the switch per session, and clears entries a month old', { options: { mode: 'coach' } }, async ($, on) => {
+    const day = 24 * 60 * 60 * 1000
+    const calls = world(on, {
+      store: {
+        'override:session-1': { mode: 'nonsense', autoStyle: 'append', at: 0 },
+        'override:session-2': { mode: 'off', autoStyle: 'append', at: 0 },
+        'override:session-3': { mode: 'off', autoStyle: 'append', at: 40 * day },
+        'other-key': 'left alone',
+      },
+    })
+    await calls.clock.set(45 * day)
+    expect((await $.command.run(command('status'))).text).toContain('模式：教練')
+
+    await $.command.run(command('off'))
+    expect(calls.store.get('override:session-1')).toMatchObject({ mode: 'off', autoStyle: 'append', at: 45 * day })
+    expect(calls.store.has('override:session-2')).toBe(false)
+    expect(calls.store.get('override:session-3')).toMatchObject({ mode: 'off' })
+    expect(calls.store.get('other-key')).toBe('left alone')
+    await $.prompt.submit(typed(PROMPT))
+    expect(calls.fork).toBe(0)
+  })
+
   test('switches the session and reports', { options: { mode: 'coach' } }, async ($, on) => {
     const calls = world(on)
 
@@ -489,50 +530,13 @@ describe('/prompt-coach', () => {
     expect(sent.context).toBeUndefined()
   })
 
-  test('the interface speaks English when asked', { options: { mode: 'auto', language: 'en' } }, async ($, on) => {
+  // The language comes with the build: prompt-coach is the Traditional Chinese
+  // one. A `language` an older version saved is still handed over, and ignored.
+  test('the build sets the language, not a saved option', { options: { mode: 'auto', language: 'en' } }, async ($, on) => {
     const calls = world(on)
     await $.prompt.submit(typed(PROMPT))
 
-    expect(calls.logs.join('\n')).toContain('Attached 3 notes')
-    expect((await $.command.run(command(''))).text).toContain('Mode: auto')
-  })
-})
-
-describe('the /config rows', () => {
-  const row = (key: string, label: string, plugin = 'prompt-coach@prompt-coach') => ({
-    key,
-    label,
-    description: 'as the manifest says',
-    isHidden: false,
-    provider: { plugin, tier: 'user' as const },
-  })
-  /** Beneath the plugin, the menu draws the row as it reaches it. */
-  const menu = (on: On) => on('config.describe', ($, e) => ({ label: e.label, description: e.description, isHidden: e.isHidden }))
-
-  test('name the fields in Chinese by default', async ($, on) => {
-    menu(on)
-    const mode = await $.config.describe(row('prompt-coach.mode', 'Mode'))
-    expect(mode).toMatchObject({ label: '模式', isHidden: false })
-    expect(mode.description).toContain('coach：')
-
-    const language = await $.config.describe(row('prompt-coach.language', 'Interface language'))
-    expect(language.label).toBe('介面語言（Interface language）')
-  })
-
-  test('name the fields in English alone when asked, not in both languages as the manifest does', { options: { language: 'en' } }, async ($, on) => {
-    menu(on)
-    const mode = await $.config.describe(row('prompt-coach.mode', 'Mode／模式'))
-    expect(mode.label).toBe('Mode')
-    expect(mode.description).toStartWith('coach: show the review')
-  })
-
-  test('leave every other row alone', async ($, on) => {
-    menu(on)
-    const theme = await $.config.describe(row('theme', 'Theme', 'engine'))
-    expect(theme.label).toBe('Theme')
-    const other = await $.config.describe(row('prompt-coach-x.mode', 'Mode', 'prompt-coach-x@m'))
-    expect(other.label).toBe('Mode')
-    const unknown = await $.config.describe(row('prompt-coach.toString', 'Some field'))
-    expect(unknown.label).toBe('Some field')
+    expect(calls.logs.join('\n')).toContain('已附加 3 項補充')
+    expect((await $.command.run(command(''))).text).toContain('模式：自動')
   })
 })

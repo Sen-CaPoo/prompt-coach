@@ -451,6 +451,13 @@ describe('settings', () => {
     expect(applyCommandWord(base, 'off')?.mode).toBe('off')
     expect(applyCommandWord(base, 'nope')).toBe(null)
   })
+
+  test('each build names its own plugin in the status', () => {
+    const lines = { mode: 'auto', style: 'append', engine: 'fork', model: 'claude-sonnet-5-5', effort: 'medium', profile: 'Sonnet 5.5' }
+    expect(stringsFor('zh-TW').status(lines)).toContain('/plugin configure prompt-coach@prompt-coach')
+    expect(stringsFor('en').status(lines)).toContain('Mode: auto')
+    expect(stringsFor('en').status(lines)).toContain('/plugin configure prompt-coach-en@prompt-coach')
+  })
 })
 
 describe('the card', () => {

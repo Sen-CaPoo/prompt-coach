@@ -12,27 +12,37 @@
 Paste this into Claude Code:
 
 ```text
-Please install the Claude Code plugin prompt-coach.
-1. Run: claude plugin marketplace add Sen-CaPoo/prompt-coach
-2. Run: claude plugin install prompt-coach@prompt-coach
-3. Tell me the result and remind me to run /reload-plugins in Claude Code, or to restart it.
-4. In a sentence or two, say what /prompt-coach status, /prompt-coach auto and /prompt-coach off do.
+Please install the Claude Code plugin Prompt Coach.
+1. First ask me which interface language I want, and wait for my answer: English, or Traditional Chinese (正體中文).
+2. Run: claude plugin marketplace add Sen-CaPoo/prompt-coach
+3. For English install prompt-coach-en; for Traditional Chinese install prompt-coach:
+   claude plugin install <plugin name>@prompt-coach
+4. Run claude plugin list. If the other language's build is installed too, remove it with claude plugin uninstall <other plugin name>@prompt-coach; with both installed, every prompt is reviewed twice.
+5. Tell me the result and remind me to run /reload-plugins in Claude Code, or to restart it.
+6. In a sentence or two, in the language I chose, say what /prompt-coach status, /prompt-coach auto and /prompt-coach off do.
 Do not change any other setting.
 ```
 
 ## Install it yourself
 
+The interface language comes with the build you install. Install one of the two:
+
+| Build | Plugin name | Interface |
+| --- | --- | --- |
+| English | `prompt-coach-en` | The card, the notes, the command output and the settings screens are all in English |
+| Traditional Chinese | `prompt-coach` | The same, all in Traditional Chinese |
+
 | Step | Type in Claude Code | What you should see |
 | --- | --- | --- |
 | 1 | `/plugin marketplace add Sen-CaPoo/prompt-coach` | The marketplace is added |
-| 2 | `/plugin install prompt-coach@prompt-coach` | `Installed prompt-coach` |
+| 2 | `/plugin install prompt-coach-en@prompt-coach` (Traditional Chinese: `prompt-coach@prompt-coach`) | `Installed prompt-coach-en` (or `prompt-coach`) |
 | 3 | `/reload-plugins` | `/prompt-coach status` reports the current mode |
+
+To switch languages, `/plugin uninstall` the build you have and install the other. The two keep their settings apart, so set them again after switching.
 
 Requires Claude Code 2.1.287 or later. Tested on 2.1.322 (Windows).
 
-To try it without installing, clone this repository and start `claude --plugin-dir <folder>`; it applies to that session only.
-
-The interface defaults to Traditional Chinese. Set the `language` option to `en` for English. Until then the settings in `/config` are named in Chinese too; the switch is the row named `介面語言（Interface language）`.
+To try it without installing, clone this repository, run `node scripts/manifest.mjs en` in the folder to write a `plugin.json` (leave out `en` for Traditional Chinese), and start `claude --plugin-dir <folder>`; it applies to that session only.
 
 ## Two modes
 
@@ -89,9 +99,11 @@ For a prompt with limits or conditions, use coach mode and press 1 after reading
 | `/prompt-coach off` | Off for this session |
 | `/prompt-coach last` | The last review in full: every check, every suggestion, and why a rewrite was not used |
 
-Commands last for the session (kept in session state, so they survive `/reload-plugins`). To change the defaults, run `/plugin configure prompt-coach@prompt-coach`, or edit prompt-coach's options in `/config`.
+Commands last for the session (one entry per session in the plugin's store, so they survive `/reload-plugins`). To change the defaults, run `/plugin configure prompt-coach-en@prompt-coach` (`prompt-coach@prompt-coach` for the Traditional Chinese build), or edit them in `/config`.
 
 ## Options
+
+Both builds have the same options and defaults; only the language of the names and descriptions differs. Each description ends with the default, and an option left unset takes its default.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
@@ -108,7 +120,6 @@ Commands last for the session (kept in session state, so they survive `/reload-p
 | `min_chars` | `8` | Shorter prompts skip the model review |
 | `fork_max_tokens` | `200000` | Past this conversation size the review uses `complete`, so its cost stops growing with the conversation |
 | `headless` | `false` | Also review prompts from `claude -p` and the SDK |
-| `language` | `zh-TW` | `zh-TW` or `en`; the names of these settings in `/config` follow it too |
 
 ## How it works
 
@@ -177,13 +188,18 @@ The same wording can call for opposite advice on different models. "Finish the w
 
 ## Development
 
+Each build's manifest is one of the two entries in `.claude-plugin/marketplace.json` (`strict: false`). The repository commits no `plugin.json`: when the folder holds one, Claude Code reads it instead, and both builds would get the same settings screens. Write one before testing locally:
+
 ```bash
+node scripts/manifest.mjs       # plugin.json for the Traditional Chinese build (English: node scripts/manifest.mjs en); also checks the builds differ in words only
 claude plugin validate .        # manifest and hooks
-claude plugin test .            # 88 tests
+claude plugin test .            # 87 tests, run as the Traditional Chinese build
 claude --plugin-dir .           # load this folder (the types are written on first load)
 npx -p typescript tsc -p .      # type check
 claude --debug                  # each review leaves a line: [prompt-coach] reviewed ...
 ```
+
+Change an option in both entries at once; `manifest.mjs` stops when their defaults, choices or ranges disagree. The hooks both builds share are in `hooks/coach.tsx`; `hooks/register.tsx` (via `hooks/zh.json`) and `hooks/register.en.tsx` (via `hooks/en.json`) only pick the language.
 
 ## Limits
 
@@ -194,7 +210,10 @@ claude --debug                  # each review leaves a line: [prompt-coach] revi
 - A prompt typed while a turn is running is not reviewed. A prompt sent while a review is under way is queued by Claude Code, so two prompts are never reviewed at once.
 - After a full rewrite, whether Claude Code's marking of pasted content survives cannot be confirmed from the mod's side. Use append if that matters to you.
 - The `api_key` backend was verified for its request format and for failing open, not for a successful call with a real key.
-- The names of the settings in `/config` follow `language` and change at once. `/plugin configure` and the settings screen at install read `plugin.json` itself and never switch, so its names and descriptions carry both languages; opening one setting in `/config` shows that two-language description too (tested in the terminal on 2.1.322).
+- The build sets the language of the settings screens; no option switches it. `/plugin configure`, the settings screen at install and `/config` all read that build's manifest (tested in the terminal on 2.1.322: each build shows one language only).
+- In the `/plugin configure` and install forms, a number or text field never set is blank rather than showing its default; that is how Claude Code draws the form. The default still applies, and the `/config` list shows it. That is why each description ends with the default.
+- With both builds installed, every prompt is reviewed twice, and both register `/prompt-coach`. Install one.
+- After `--resume` into the same session, a mode switched with `/prompt-coach` may still hold.
 - The mod API can change between Claude Code releases. After an update, run `claude plugin validate .` and `claude plugin test .`.
 - An organization that sets `allowManagedModsOnly` in managed settings stops mods its users install themselves.
 
