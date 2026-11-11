@@ -1,0 +1,16 @@
+{
+  "name": "prompt-coach",
+  "owner": {
+    "name": "Sen-CaPoo"
+  },
+  "plugins": [
+    {
+      "name": "prompt-coach",
+      "source": "./",
+      "description": "Reviews each prompt before it is sent, against Anthropic's prompting guidance for the session's model and effort level."
+    }
+  ],
+  "metadata": {
+    "description": "Prompt Coach: a Claude Code mod that reviews each prompt before it is sent."
+  }
+}

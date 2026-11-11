@@ -1,0 +1,134 @@
+{
+  "name": "prompt-coach",
+  "version": "0.1.0",
+  "description": "Reviews each prompt before it is sent, against Anthropic's prompting guidance for the session's model and effort level. Coach mode shows the findings and lets you choose; auto mode applies them.",
+  "author": {
+    "name": "Sen-CaPoo"
+  },
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "keywords": [
+    "mods",
+    "prompting",
+    "prompt-engineering"
+  ],
+  "userConfig": {
+    "mode": {
+      "type": "string",
+      "title": "Mode",
+      "description": "coach: show the review and let me choose. auto: apply it without asking. off: do nothing.",
+      "options": [
+        "coach",
+        "auto",
+        "off"
+      ],
+      "default": "coach"
+    },
+    "auto_style": {
+      "type": "string",
+      "title": "Auto mode style",
+      "description": "append: leave my words as typed and attach notes only Claude reads. rewrite: replace my prompt with the improved version.",
+      "options": [
+        "append",
+        "rewrite"
+      ],
+      "default": "append"
+    },
+    "pass_score": {
+      "type": "number",
+      "title": "Pass score",
+      "description": "Coach mode sends a prompt without asking when it scores at least this much (0-100).",
+      "default": 85,
+      "min": 0,
+      "max": 100
+    },
+    "backend": {
+      "type": "string",
+      "title": "Review backend",
+      "description": "session: review through Claude Code's own connection (your plan, API key or cloud provider). api_key: review through the Messages API with the key below.",
+      "options": [
+        "session",
+        "api_key"
+      ],
+      "default": "session"
+    },
+    "engine": {
+      "type": "string",
+      "title": "Session review engine",
+      "description": "fork: the session's own model reviews with the whole conversation in view, reusing its prompt cache. complete: a separate call that sees only a digest of the conversation.",
+      "options": [
+        "fork",
+        "complete"
+      ],
+      "default": "fork"
+    },
+    "fork_effort": {
+      "type": "string",
+      "title": "Effort of a fork review",
+      "description": "low: the review asks for low effort, the quickest. session: it names no level and runs at the session's; choose this when your model or provider takes effort for a whole request only, where a different level writes the conversation to the prompt cache again.",
+      "options": [
+        "low",
+        "session"
+      ],
+      "default": "low"
+    },
+    "review_model": {
+      "type": "string",
+      "title": "Review model",
+      "description": "Model for the complete engine and the api_key backend: session (the model the session runs), haiku, sonnet, opus, fable, or a full model id.",
+      "default": "session"
+    },
+    "api_key": {
+      "type": "string",
+      "title": "Anthropic API key",
+      "description": "Used only by the api_key backend. The PROMPT_COACH_API_KEY environment variable works too.",
+      "sensitive": true
+    },
+    "api_base_url": {
+      "type": "string",
+      "title": "API base URL",
+      "description": "Where the api_key backend sends requests.",
+      "default": "https://api.anthropic.com"
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "title": "Review timeout (seconds)",
+      "description": "When a review takes longer than this, the prompt is sent as typed.",
+      "default": 25,
+      "min": 5,
+      "max": 120
+    },
+    "min_chars": {
+      "type": "number",
+      "title": "Shortest prompt to review",
+      "description": "Prompts shorter than this many characters skip the model review. The instant pattern check still runs.",
+      "default": 8,
+      "min": 0,
+      "max": 2000
+    },
+    "fork_max_tokens": {
+      "type": "number",
+      "title": "Largest conversation to fork",
+      "description": "Past this many context tokens the review uses the complete engine, so its cost stops growing with the conversation.",
+      "default": 200000,
+      "min": 1000,
+      "max": 2000000
+    },
+    "headless": {
+      "type": "boolean",
+      "title": "Review prompts from claude -p and the SDK",
+      "description": "Off by default: only prompts typed at the prompt box are reviewed. Coach mode never holds a headless prompt.",
+      "default": false
+    },
+    "language": {
+      "type": "string",
+      "title": "Interface language",
+      "description": "Language of the card, the notes in the transcript and the command output.",
+      "options": [
+        "zh-TW",
+        "en"
+      ],
+      "default": "zh-TW"
+    }
+  }
+}
