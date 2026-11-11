@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="版本 0.1.0" src="https://img.shields.io/badge/version-0.1.0-0072CE">
+  <img alt="版本 0.1.1" src="https://img.shields.io/badge/version-0.1.1-0072CE">
   <img alt="Claude Code 2.1.287 以上" src="https://img.shields.io/badge/Claude%20Code-2.1.287%2B-13202F">
   <img alt="MIT 授權" src="https://img.shields.io/badge/license-MIT-2E8B87">
 </p>

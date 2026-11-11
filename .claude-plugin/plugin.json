@@ -1,6 +1,6 @@
 {
   "name": "prompt-coach",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Reviews each prompt before it is sent, against Anthropic's prompting guidance for the session's model and effort level. Coach mode shows the findings and lets you choose; auto mode applies them.",
   "author": {
     "name": "Sen-CaPoo"
