@@ -29,9 +29,10 @@ import { pause } from './lib/wait'
 //
 // Every failure lets the prompt through as typed.
 //
-// Two builds share this file: prompt-coach (register.tsx) speaks Traditional
-// Chinese and prompt-coach-en (register.en.tsx) English. Each build's settings
-// screens come from its own marketplace entry.
+// Two builds share this file through hooks/hooks.json: prompt-coach speaks
+// Traditional Chinese and prompt-coach-en English, told apart by the plugin's
+// name (languageOf). Each build's settings screens come from its own
+// marketplace entry.
 
 const PANE = 'prompt-coach'
 const COMMAND = 'prompt-coach'
@@ -100,6 +101,11 @@ async function writeOverride($: EngineInterface, override: Override): Promise<vo
       await $.store.delete(key)
     }
   }
+}
+
+/** The interface language of the build this hook runs in: prompt-coach-en is English, any other name Traditional Chinese. */
+function languageOf($: EngineInterface): Language {
+  return $.plugin.name === 'prompt-coach-en' ? 'en' : 'zh-TW'
 }
 
 /** The options, with what `/prompt-coach` switched for this session laid over them. */
@@ -335,12 +341,12 @@ function describeLast(outcome: Outcome, s: Strings): string {
   return lines.join('\n')
 }
 
-/** Every hook of one build, in its interface language, through the `on` its entry module's `register` was handed. */
-export function coach(on: On, pluginOptions: PluginOptions, language: Language): void {
+/** Every hook, through the `on` the entry module's `register` was handed; each speaks the build's language (languageOf). */
+export function coach(on: On, pluginOptions: PluginOptions): void {
   options = readSettings(pluginOptions)
 
   on('session.start', async ($, e, next) => {
-    const s = stringsFor(language)
+    const s = stringsFor(languageOf($))
     await $.command.register({ name: COMMAND, description: s.commandDescription, argumentHint: s.commandHint })
 
     return next(e)
@@ -348,7 +354,7 @@ export function coach(on: On, pluginOptions: PluginOptions, language: Language):
 
   on('command.run', { command: COMMAND }, async ($, e) => {
     const settings = await currentSettings($)
-    const s = stringsFor(language)
+    const s = stringsFor(languageOf($))
     const word = e.args.trim().toLowerCase()
     if (word === 'last') {
       return { text: last === null ? s.noLast : describeLast(last, s) }
@@ -407,7 +413,7 @@ export function coach(on: On, pluginOptions: PluginOptions, language: Language):
     if (settings.mode === 'off' || !isTyped) {
       return next(e)
     }
-    const s = stringsFor(language)
+    const s = stringsFor(languageOf($))
     // One prompt at a time. A second one sent meanwhile goes back to the box:
     // nothing is lost, and it cannot overtake the one being looked at.
     if (isBusy) {
@@ -607,7 +613,7 @@ export function coach(on: On, pluginOptions: PluginOptions, language: Language):
       return next(e)
     }
 
-    return drawCard($.ui.resolve(e), held, stringsFor(language))
+    return drawCard($.ui.resolve(e), held, stringsFor(languageOf($)))
   })
 
   on('ui.render', { component: 'AbovePrompt' }, ($, e, next) => {
@@ -616,6 +622,6 @@ export function coach(on: On, pluginOptions: PluginOptions, language: Language):
     }
     held.isBandCollapsed = e.props.isCollapsed
 
-    return drawCard($.ui.resolve(e), held, stringsFor(language))
+    return drawCard($.ui.resolve(e), held, stringsFor(languageOf($)))
   })
 }

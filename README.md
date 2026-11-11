@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="版本 0.2.0" src="https://img.shields.io/badge/version-0.2.0-0072CE">
+  <img alt="版本 0.2.1" src="https://img.shields.io/badge/version-0.2.1-0072CE">
   <img alt="Claude Code 2.1.287 以上" src="https://img.shields.io/badge/Claude%20Code-2.1.287%2B-13202F">
   <img alt="MIT 授權" src="https://img.shields.io/badge/license-MIT-2E8B87">
 </p>
@@ -216,12 +216,11 @@ npx -p typescript tsc -p .      # 型別檢查
 claude --debug                  # 每次評審會在 debug log 留一行 [prompt-coach] reviewed ...
 ```
 
-改設定項目時，兩個項目要一起改；預設值、選項、範圍不一致時，`manifest.mjs` 會擋下。
+改設定項目時，兩個項目要一起改；預設值、選項、範圍不一致時，`manifest.mjs` 會擋下。marketplace 項目不能各自指定 hooks 檔案：Claude Code（2.1.322）會照樣安裝，但載入失敗。
 
 ```text
 hooks/coach.tsx        事件接線：prompt.submit、turn.step、ui.render、command.run（兩個版本共用）
-hooks/register.tsx     中文版的進入點（hooks/zh.json）
-hooks/register.en.tsx  英文版的進入點（hooks/en.json）
+hooks/register.tsx     兩個版本共用的進入點（hooks/hooks.json）；每個 hook 依外掛名稱決定語言
 hooks/lib/lint.ts      即時掃描
 hooks/lib/request.ts   組評審請求
 hooks/lib/engine.ts    fork／complete／API key 三種呼叫

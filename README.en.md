@@ -199,7 +199,7 @@ npx -p typescript tsc -p .      # type check
 claude --debug                  # each review leaves a line: [prompt-coach] reviewed ...
 ```
 
-Change an option in both entries at once; `manifest.mjs` stops when their defaults, choices or ranges disagree. The hooks both builds share are in `hooks/coach.tsx`; `hooks/register.tsx` (via `hooks/zh.json`) and `hooks/register.en.tsx` (via `hooks/en.json`) only pick the language.
+Change an option in both entries at once; `manifest.mjs` stops when their defaults, choices or ranges disagree. Both builds load `hooks/register.tsx` through `hooks/hooks.json`, and the hooks they share are in `hooks/coach.tsx`; each hook picks the language from the plugin's name. A marketplace entry cannot name a hooks file of its own: Claude Code (2.1.322) installs the plugin but refuses to load it.
 
 ## Limits
 

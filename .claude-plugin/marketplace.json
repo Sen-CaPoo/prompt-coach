@@ -8,14 +8,13 @@
       "name": "prompt-coach",
       "source": "./",
       "strict": false,
-      "version": "0.2.0",
+      "version": "0.2.1",
       "description": "送出前，依 session 的模型與 effort，對照 Anthropic 的提示詞指引評審每一則 prompt。教練模式顯示結果讓你選，自動模式直接套用。介面為正體中文；英文版是 prompt-coach-en。",
       "author": {
         "name": "Sen-CaPoo"
       },
       "license": "MIT",
       "types": "./types/index.d.ts",
-      "hooks": "./hooks/zh.json",
       "keywords": [
         "mods",
         "prompting",
@@ -135,14 +134,13 @@
       "name": "prompt-coach-en",
       "source": "./",
       "strict": false,
-      "version": "0.2.0",
+      "version": "0.2.1",
       "description": "Reviews each prompt before it is sent, against Anthropic's prompting guidance for the session's model and effort level. Coach mode shows the findings and lets you choose; auto mode applies them. English interface; the Traditional Chinese build is prompt-coach.",
       "author": {
         "name": "Sen-CaPoo"
       },
       "license": "MIT",
       "types": "./types/index.d.ts",
-      "hooks": "./hooks/en.json",
       "keywords": [
         "mods",
         "prompting",
