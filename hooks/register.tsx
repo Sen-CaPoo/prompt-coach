@@ -13,7 +13,7 @@ import { parseReview } from './lib/parse'
 import { forkRequest, standaloneRequest, viewOf } from './lib/request'
 import { scoreOf } from './lib/score'
 import { applyCommandWord, readSettings } from './lib/settings'
-import { refusalText, stringsFor } from './lib/strings'
+import { configText, refusalText, stringsFor } from './lib/strings'
 import type { Strings } from './lib/strings'
 import type { Addition, Effort, LintHit, Outcome, PromptView, Row, Settings } from './lib/types'
 import { pause } from './lib/wait'
@@ -26,6 +26,7 @@ import { pause } from './lib/wait'
 // turn.step       remembers the effort of the session's last request.
 // ui.render       draws the card in a pane, or in the band above the prompt.
 // command.run     /prompt-coach switches mode for the session and reports.
+// config.describe names this plugin's /config rows in the interface language.
 //
 // Every failure lets the prompt through as typed.
 
@@ -37,6 +38,8 @@ const EDIT_PASS_MS = 10 * 60 * 1000
 const EFFORTS: readonly string[] = ['low', 'medium', 'high', 'xhigh', 'max']
 /** What `/prompt-coach` switched, in the session's state: it outlives a reload of this module. */
 const OVERRIDE = { plugin: 'prompt-coach', key: 'override' } as const
+/** This plugin's `/config` rows: `prompt-coach.<field>`. */
+const CONFIG_ROW = /^prompt-coach\.(.+)$/
 
 let options: Settings = readSettings(undefined)
 /** The model and effort of the session's last request. */
@@ -342,6 +345,12 @@ export const register: Register = (on, pluginOptions) => {
     await $.state.set(OVERRIDE, override)
 
     return { text: s.switched(changed.mode, s.modeNames[changed.mode], s.styleNames[changed.autoStyle]) }
+  })
+
+  on('config.describe', { key: CONFIG_ROW }, async ($, e, next) => {
+    const words = configText(stringsFor(options.language), CONFIG_ROW.exec(e.key)?.[1] ?? '')
+
+    return next(words === undefined ? e : { ...e, label: words.label, description: words.description })
   })
 
   // The model and effort of the session's own requests; a subagent's are its own.

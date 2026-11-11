@@ -32,7 +32,7 @@ Requires Claude Code 2.1.287 or later. Tested on 2.1.322 (Windows).
 
 To try it without installing, clone this repository and start `claude --plugin-dir <folder>`; it applies to that session only.
 
-The interface defaults to Traditional Chinese. Set the `language` option to `en` for English.
+The interface defaults to Traditional Chinese. Set the `language` option to `en` for English. Until then the settings in `/config` are named in Chinese too; the switch is the row named `介面語言（Interface language）`.
 
 ## Two modes
 
@@ -108,7 +108,7 @@ Commands last for the session (kept in session state, so they survive `/reload-p
 | `min_chars` | `8` | Shorter prompts skip the model review |
 | `fork_max_tokens` | `200000` | Past this conversation size the review uses `complete`, so its cost stops growing with the conversation |
 | `headless` | `false` | Also review prompts from `claude -p` and the SDK |
-| `language` | `zh-TW` | `zh-TW` or `en` |
+| `language` | `zh-TW` | `zh-TW` or `en`; the names of these settings in `/config` follow it too |
 
 ## How it works
 
@@ -179,7 +179,7 @@ The same wording can call for opposite advice on different models. "Finish the w
 
 ```bash
 claude plugin validate .        # manifest and hooks
-claude plugin test .            # 85 tests
+claude plugin test .            # 88 tests
 claude --plugin-dir .           # load this folder (the types are written on first load)
 npx -p typescript tsc -p .      # type check
 claude --debug                  # each review leaves a line: [prompt-coach] reviewed ...
@@ -194,6 +194,7 @@ claude --debug                  # each review leaves a line: [prompt-coach] revi
 - A prompt typed while a turn is running is not reviewed. A prompt sent while a review is under way is queued by Claude Code, so two prompts are never reviewed at once.
 - After a full rewrite, whether Claude Code's marking of pasted content survives cannot be confirmed from the mod's side. Use append if that matters to you.
 - The `api_key` backend was verified for its request format and for failing open, not for a successful call with a real key.
+- The names of the settings in `/config` follow `language` and change at once. `/plugin configure` and the settings screen at install read `plugin.json` itself and never switch, so its names and descriptions carry both languages; opening one setting in `/config` shows that two-language description too (tested in the terminal on 2.1.322).
 - The mod API can change between Claude Code releases. After an update, run `claude plugin validate .` and `claude plugin test .`.
 - An organization that sets `allowManagedModsOnly` in managed settings stops mods its users install themselves.
 

@@ -123,7 +123,7 @@
 | `min_chars` | `8` | 比這個短的 prompt 不呼叫模型評審 |
 | `fork_max_tokens` | `200000` | 對話超過這個大小改用 `complete`，避免評審成本跟著對話成長 |
 | `headless` | `false` | 是否也評審 `claude -p` 與 SDK 送出的 prompt |
-| `language` | `zh-TW` | 介面語言：`zh-TW` 或 `en` |
+| `language` | `zh-TW` | 介面語言：`zh-TW` 或 `en`。`/config` 裡這些設定的名稱也跟著切換 |
 
 ## 它怎麼運作
 
@@ -194,14 +194,14 @@ Opus 5.5、Fable 5.2、Sonnet 5.5、Haiku 5.5 各有一個規則模組；其他�
 
 ```bash
 claude plugin validate .        # 檢查 manifest 與 hooks
-claude plugin test .            # 85 個測試
+claude plugin test .            # 88 個測試
 claude --plugin-dir .           # 載入這個資料夾試用（第一次載入後才有型別檔）
 npx -p typescript tsc -p .      # 型別檢查
 claude --debug                  # 每次評審會在 debug log 留一行 [prompt-coach] reviewed ...
 ```
 
 ```text
-hooks/register.tsx     事件接線：prompt.submit、turn.step、ui.render、command.run
+hooks/register.tsx     事件接線：prompt.submit、turn.step、ui.render、command.run、config.describe
 hooks/lib/lint.ts      即時掃描
 hooks/lib/request.ts   組評審請求
 hooks/lib/engine.ts    fork／complete／API key 三種呼叫
@@ -226,6 +226,7 @@ tests/                 logic（純邏輯）、flow（各模式流程）、hold�
 - 執行中途插話的 prompt 不評審。評審進行中再送的 prompt 由 Claude Code 排進佇列，不會同時評審兩則。
 - 整段改寫後，Claude Code 對貼上內容的標記是否保留，沒有辦法從 mod 這一側確認；在意這點請用只附加。
 - `api_key` 後端只驗證過請求格式與失敗時放行，沒有用真實金鑰跑過成功路徑。
+- `/config` 裡設定的名稱會跟著 `language` 切換，改完立即生效。`/plugin configure` 與安裝時的設定畫面直接讀 `plugin.json`，不會切換，所以 `plugin.json` 的名稱與說明寫成中英並列；在 `/config` 點進單一設定後，名稱下方那行說明也是這段中英並列的文字（2.1.322 終端機實測）。
 - mod API 仍可能隨 Claude Code 版本變動。升版後請跑一次 `claude plugin validate .` 與 `claude plugin test .`。
 - 組織若在 managed settings 設了 `allowManagedModsOnly`，使用者自己裝的 mod 不會執行。
 

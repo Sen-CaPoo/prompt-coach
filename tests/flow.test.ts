@@ -497,3 +497,42 @@ describe('/prompt-coach', () => {
     expect((await $.command.run(command(''))).text).toContain('Mode: auto')
   })
 })
+
+describe('the /config rows', () => {
+  const row = (key: string, label: string, plugin = 'prompt-coach@prompt-coach') => ({
+    key,
+    label,
+    description: 'as the manifest says',
+    isHidden: false,
+    provider: { plugin, tier: 'user' as const },
+  })
+  /** Beneath the plugin, the menu draws the row as it reaches it. */
+  const menu = (on: On) => on('config.describe', ($, e) => ({ label: e.label, description: e.description, isHidden: e.isHidden }))
+
+  test('name the fields in Chinese by default', async ($, on) => {
+    menu(on)
+    const mode = await $.config.describe(row('prompt-coach.mode', 'Mode'))
+    expect(mode).toMatchObject({ label: '模式', isHidden: false })
+    expect(mode.description).toContain('coach：')
+
+    const language = await $.config.describe(row('prompt-coach.language', 'Interface language'))
+    expect(language.label).toBe('介面語言（Interface language）')
+  })
+
+  test('name the fields in English alone when asked, not in both languages as the manifest does', { options: { language: 'en' } }, async ($, on) => {
+    menu(on)
+    const mode = await $.config.describe(row('prompt-coach.mode', 'Mode／模式'))
+    expect(mode.label).toBe('Mode')
+    expect(mode.description).toStartWith('coach: show the review')
+  })
+
+  test('leave every other row alone', async ($, on) => {
+    menu(on)
+    const theme = await $.config.describe(row('theme', 'Theme', 'engine'))
+    expect(theme.label).toBe('Theme')
+    const other = await $.config.describe(row('prompt-coach-x.mode', 'Mode', 'prompt-coach-x@m'))
+    expect(other.label).toBe('Mode')
+    const unknown = await $.config.describe(row('prompt-coach.toString', 'Some field'))
+    expect(unknown.label).toBe('Some field')
+  })
+})
