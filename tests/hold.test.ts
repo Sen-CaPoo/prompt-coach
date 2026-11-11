@@ -49,7 +49,7 @@ function world(on: On, w: World = {}) {
   mock.env(on, {})
   mock.store(on)
   on('session.id', () => ({ value: 'session-1' }))
-  const calls = { fork: 0, opens: 0, closes: [] as string[], asks: 0, fills: [] as string[] }
+  const calls = { fork: 0, opens: 0, closes: [] as string[], asks: 0, fills: [] as string[], toasts: [] as string[] }
   const answered = (text: string): ModelCompleteResult => ({ isAnswered: true, text, usage: USAGE })
 
   on('session.model', () => ({ value: 'claude-sonnet-5-5' }))
@@ -65,7 +65,11 @@ function world(on: On, w: World = {}) {
     return { value: answered(JSON.stringify(REVIEW)) }
   })
   on('ui.status', () => ({ value: undefined }))
-  on('ui.toast', () => ({ value: undefined }))
+  on('ui.toast', (_, e) => {
+    calls.toasts.push(e.text)
+
+    return { value: undefined }
+  })
   on('ui.log', () => ({ value: undefined }))
   on('ui.open', () => {
     calls.opens += 1
@@ -103,7 +107,7 @@ const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer'
 const options = { mode: 'coach' }
 
 describe('the card in a pane', () => {
-  test('shows the review with four choices; 1 sends the suggested version', { options }, async ($, on) => {
+  test('shows the review with four choices; 1 sends the suggested prompt', { options }, async ($, on) => {
     const { clock, calls } = world(on)
     let done: Sent | undefined
     const sending = $.prompt.submit(typed(PROMPT)).then(sent => (done = sent))
@@ -111,8 +115,10 @@ describe('the card in a pane', () => {
 
     const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
     expect(await ui.find({ type: 'Text', text: /40 分/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /完成標準：沒有完成標準/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /\+ 修正登入頁/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /觀念解析/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /· 沒有完成標準/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^修正登入頁/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /\d+ 秒後自動用原文送出/ })).toBeDefined()
     expect((await ui.findAll({ type: 'Button' })).length).toBe(4)
     // Nothing is sent while the card is up.
     expect(done).toBeUndefined()
@@ -141,7 +147,7 @@ describe('the card in a pane', () => {
     expect(done?.context).toBeUndefined()
   })
 
-  test('3 puts the suggested version in the box, and what is sent next goes through', { options }, async ($, on) => {
+  test('3 puts the suggested prompt in the box, and what is sent next goes through', { options }, async ($, on) => {
     const { clock, calls } = world(on)
     let done: Sent | undefined
     const sending = $.prompt.submit(typed(PROMPT)).then(sent => (done = sent))
@@ -151,7 +157,7 @@ describe('the card in a pane', () => {
     await clock.advance(1000)
     await sending
 
-    expect(done?.drop).toContain('建議版本已放進輸入框')
+    expect(done?.drop).toContain('建議提示詞已放進輸入框')
     expect(calls.fills).toEqual([REWRITE])
     const edited = await $.prompt.submit(typed(`${REWRITE} 訊息用紅字`))
     expect(edited.text).toBe(`${REWRITE} 訊息用紅字`)
@@ -175,10 +181,32 @@ describe('the card in a pane', () => {
     expect(calls.fork).toBe(1)
   })
 
-  test('a card nobody answers in ten minutes sends nothing', { options, timeoutMs: 120_000 }, async ($, on) => {
+  test('a card nobody answers counts down, then sends the prompt as typed', { options }, async ($, on) => {
     const { clock, calls } = world(on)
     let done: Sent | undefined
     const sending = $.prompt.submit(typed(PROMPT)).then(sent => (done = sent))
+    await clock.advance(30 * 1000)
+    const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+    expect(await ui.find({ type: 'Text', text: /^(29|30|31) 秒後自動用原文送出$/ })).toBeDefined()
+    await ui.unmount()
+    expect(done).toBeUndefined()
+
+    await clock.advance(31 * 1000)
+    await sending
+    expect(done?.text).toBe(PROMPT)
+    expect(done?.context).toBeUndefined()
+    expect(calls.toasts).toContain('60 秒沒有回應，已用原文送出')
+    expect(calls.closes).toEqual(['prompt-coach'])
+  })
+
+  test('with the countdown off, a card nobody answers in ten minutes sends nothing', { options: { ...options, auto_send_seconds: 0 }, timeoutMs: 120_000 }, async ($, on) => {
+    const { clock, calls } = world(on)
+    let done: Sent | undefined
+    const sending = $.prompt.submit(typed(PROMPT)).then(sent => (done = sent))
+    await clock.advance(1000)
+    const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+    expect(await ui.find({ type: 'Text', text: /秒後自動用原文送出/ })).toBeUndefined()
+    await ui.unmount()
     await clock.advance(10 * 60 * 1000 + 2000)
     await sending
 
@@ -201,7 +229,7 @@ describe('one prompt at a time', () => {
     // The first one's card comes up as if nothing had happened.
     await clock.advance(6000)
     let ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-    expect(await ui.find({ type: 'Text', text: /\+ 修正登入頁/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^修正登入頁/ })).toBeDefined()
     await $.ui.press({ plugin: 'prompt-coach', key: 'original' })
     await ui.unmount()
     await clock.advance(1000)
@@ -240,7 +268,10 @@ describe('where no pane is placed', () => {
     await clock.advance(1000)
 
     const ui = await $.ui.mount({ ...band(false), surface: 'terminal' })
-    expect(await ui.find({ type: 'Text', text: /\+ 修正登入頁/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^修正登入頁/ })).toBeDefined()
+    // Nothing around the band names the coach, so its title does.
+    expect(await ui.find({ type: 'Text', text: /^提示詞教練 · Sonnet 5\.5 · 40 分$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /\d+ 秒後自動用原文送出/ })).toBeDefined()
     expect((await ui.findAll({ type: 'Button' })).length).toBe(4)
     await $.ui.press({ plugin: 'prompt-coach', key: 'apply' })
     await ui.unmount()
@@ -254,7 +285,7 @@ describe('where no pane is placed', () => {
   })
 
   test('a band the person has folded away asks through the dialog', { options }, async ($, on) => {
-    const { clock, calls } = world(on, { isPlaced: false, ask: '套用建議版本' })
+    const { clock, calls } = world(on, { isPlaced: false, ask: '套用建議提示詞' })
     let done: Sent | undefined
     const sending = $.prompt.submit(typed(PROMPT)).then(sent => (done = sent))
     await clock.advance(1000)

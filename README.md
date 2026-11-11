@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="版本 0.2.1" src="https://img.shields.io/badge/version-0.2.1-0072CE">
+  <img alt="版本 0.3.0" src="https://img.shields.io/badge/version-0.3.0-0072CE">
   <img alt="Claude Code 2.1.287 以上" src="https://img.shields.io/badge/Claude%20Code-2.1.287%2B-13202F">
   <img alt="MIT 授權" src="https://img.shields.io/badge/license-MIT-2E8B87">
 </p>
@@ -54,25 +54,32 @@
 
 | | 教練模式（預設） | 自動模式 |
 | --- | --- | --- |
-| 做什麼 | 分數不到門檻時顯示卡片，你決定怎麼送 | 不問你，直接處理後送出 |
-| 你的 prompt | 你選了建議版本才會被換掉 | **只附加**（預設）：一個字都不動，補充只有 Claude 讀得到。**整段改寫**：符合[條件](#整段改寫什麼時候會動手)時換成改寫版，其餘照只附加處理 |
+| 做什麼 | 分數不到門檻時顯示卡片，你決定怎麼送；預設 60 秒沒回應就用原文送出 | 不問你，直接處理後送出 |
+| 你的 prompt | 你選了建議提示詞才會改：有改寫版就換成改寫版，只有補充時把補充接在原文後面，一起成為你的訊息 | **只附加**（預設）：一個字都不動，補充只有 Claude 讀得到。**整段改寫**：符合[條件](#整段改寫什麼時候會動手)時換成改寫版，其餘照只附加處理 |
 | 留下紀錄 | 卡片 | 對話裡的灰字：附加了什麼，或原文是什麼 |
 | 切換 | `/prompt-coach coach` | `/prompt-coach append` 或 `/prompt-coach rewrite` |
 
-教練模式的卡片（按數字鍵選擇）：
+教練模式的卡片（按數字鍵選擇；窗格的標題列是「提示詞教練」）：
 
 ```text
-提示詞教練 · Sonnet 5.5 · effort medium · 25 分（5 項適用，1 項通過）
-1: 套用建議版本  2: 用原文送出  3: 放回輸入框修改  4: 取消送出  Esc 也可以取消
+Sonnet 5.5 · effort medium · 25 分
+1: 套用建議提示詞  2: 用原文送出  3: 放回輸入框修改  4: 取消送出  Esc 也可以取消
+58 秒後自動用原文送出
 
-指涉：「登入那邊」沒有指明檔案；前文提到的是 src/components/LoginForm.tsx。
-完成標準：沒有說怎樣算完成；前文提過 npm test -- LoginForm。
-缺資訊：錯誤訊息的文字與顯示位置，只有你知道。
-建議版本
-- 幫我把登入那邊改好
-+ 請修改 src/components/LoginForm.tsx，讓 API 回 401 時顯示錯誤訊息。完成後執行
-  npm test -- LoginForm 確認測試通過。錯誤訊息的文字與顯示位置不確定時，先問我再動手。
+觀念解析
+· 「登入那邊」沒有指明是哪個檔案；前面提到的是 src/components/LoginForm.tsx。
+· 沒有說怎樣算完成；前面提過 npm test -- LoginForm。
+· 沒有說哪些檔案可以改、哪些不能動。
+· 錯誤訊息要寫什麼、顯示在哪裡，只有你知道。
+建議提示詞
+請修改 src/components/LoginForm.tsx，讓 API 回 401 時顯示錯誤訊息。完成後執行
+npm test -- LoginForm 確認測試通過。錯誤訊息的文字與顯示位置不確定時，先問我再動手。
 ```
+
+- **觀念解析**用白話說明缺什麼、哪句話可以改，最多 5 條；更多細節（每項檢查、信心較低的寫法提醒）用 `/prompt-coach last` 查看。
+- **建議提示詞**就是按 1 會送出的內容。prompt 太長或含貼上內容時不做改寫，改成「原文＋補充句子」：原文照舊送出，卡片上只顯示開頭。
+- 這個 session 還沒送過請求（第一則、換模型後、外掛重新載入後）時，外掛不知道實際的 effort，所以標題不顯示 effort，也不給 effort 建議。
+- 卡片畫在輸入框上方時，第一行會以「提示詞教練 ·」開頭。
 
 自動模式（只附加）在對話裡留下的紀錄：
 
@@ -127,6 +134,7 @@
 | `mode` | `coach` | `coach`、`auto`、`off` |
 | `auto_style` | `append` | 自動模式的做法：`append` 只附加、`rewrite` 整段改寫 |
 | `pass_score` | `85` | 教練模式下，達到這個分數就直接送出 |
+| `auto_send_seconds` | `60` | 教練模式的卡片等這麼多秒沒回應，就用原文送出，卡片上會倒數。`0` 表示不自動送出（等 10 分鐘後取消）。只適用於窗格與資訊帶，Claude Code 的詢問對話框會一直等 |
 | `backend` | `session` | `session`：用 Claude Code 自己的連線（你的訂閱方案、API key 或雲端供應商）。`api_key`：用下面的金鑰直接呼叫 Messages API |
 | `engine` | `fork` | `fork`：由 session 的模型帶著完整對話來評審，沿用 prompt cache。`complete`：獨立呼叫，只看得到對話摘要 |
 | `fork_effort` | `low` | `low`：fork 評審指定低 effort，最快。`session`：不指定，照 session 的 effort 執行；你的模型或供應商只能對整個請求設定 effort 時選這個，否則每次評審會把對話重寫一份 prompt cache |
@@ -149,7 +157,7 @@ flowchart TD
     D -- 逾時或失敗 --> Z
     D --> E[程式檢查<br>引句比對、改寫防護、計分]
     E --> F{模式}
-    F -- 教練 --> G[卡片：1 套用 / 2 原文 / 3 修改 / 4 取消]
+    F -- 教練 --> G[卡片：1 套用 / 2 原文 / 3 修改 / 4 取消<br>沒回應時倒數後用原文送出]
     F -- 自動・只附加 --> H[原文＋只有 Claude 讀得到的補充]
     F -- 自動・整段改寫 --> J{符合改寫條件？}
     J -- 是 --> I[改寫版，原文記在對話裡]
@@ -210,7 +218,7 @@ Opus 5.5、Fable 5.2、Sonnet 5.5、Haiku 5.5 各有一個規則模組；其他�
 ```bash
 node scripts/manifest.mjs       # 產生中文版的 plugin.json（英文版：node scripts/manifest.mjs en），並檢查兩個版本只差在文字
 claude plugin validate .        # 檢查 manifest 與 hooks
-claude plugin test .            # 87 個測試（以中文版執行）
+claude plugin test .            # 94 個測試（以中文版執行）
 claude --plugin-dir .           # 載入這個資料夾試用（第一次載入後才有型別檔）
 npx -p typescript tsc -p .      # 型別檢查
 claude --debug                  # 每次評審會在 debug log 留一行 [prompt-coach] reviewed ...
@@ -243,6 +251,9 @@ tests/                 logic（純邏輯）、flow（各模式流程）、hold�
 - session 的第一次 fork 評審有時會把對話重寫一份快取（實測約 4 萬 tokens，發生在 session 剛啟動、外掛與 MCP 還在載入時），之後就只讀快取。快取過期後的行為沒有實測。
 - 評審逾時後照原文送出，但已經送出的 fork 請求無法從 mod 取消，仍可能計入用量。
 - 卡片在終端機實測過（窗格與輸入框上方的資訊帶）。其他介面放不下窗格時，改用 Claude Code 內建的詢問對話框，這條路只有單元測試，沒有在 VS Code 或手機上實測。沒有介面的環境（`claude -p`、SDK），教練模式直接放行；自動模式不需要介面，照常運作。
+- 0.3.0 的卡片版面（觀念解析、建議提示詞、倒數自動送出）只有單元測試，還沒在終端機實測。
+- 自動送出只在窗格與資訊帶生效。詢問對話框是 Claude Code 自己的介面，mod API 沒有逾時參數，外掛也關不掉它，所以會一直等你回答。
+- 外掛只能從上一個請求得知 effort。還沒送過請求時（session 的第一則、用 `/model` 換模型後、外掛重新載入後）不評估 effort。
 - 執行中途插話的 prompt 不評審。評審進行中再送的 prompt 由 Claude Code 排進佇列，不會同時評審兩則。
 - 整段改寫後，Claude Code 對貼上內容的標記是否保留，沒有辦法從 mod 這一側確認；在意這點請用只附加。
 - `api_key` 後端只驗證過請求格式與失敗時放行，沒有用真實金鑰跑過成功路徑。

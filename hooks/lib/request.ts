@@ -44,16 +44,26 @@ export function viewOf(text: string): PromptView {
   }
 }
 
+/**
+ * The model and effort the prompt will meet. An effort level not yet seen
+ * (before the session's first request, after a model switch or a reload of
+ * the mod) is not stated: advice judged against a guessed level is wrong as
+ * often as not, so the reviewer is told to give none.
+ */
 function modelSection(profile: ModelProfile, effort: Effort, isEffortAssumed: boolean): string {
+  if (isEffortAssumed) {
+    return `The target
+The prompt will be answered by ${profile.label}, with the whole conversation in view. Anthropic's guidance differs by model: wording that helps one model can hurt another, so judge for this model. The effort level the session runs at is not known yet: give no effort advice, and set "effort" to {"advice":"keep","why":""}.
+
+Model notes
+${profile.notes}`
+  }
   const guide = (Object.keys(profile.effortGuide) as Effort[])
     .map(level => `- ${level}: ${profile.effortGuide[level]}`)
     .join('\n')
-  const assumed = isEffortAssumed
-    ? ' (the session has not made a request yet, so this is the default level and may differ from the one in force)'
-    : ''
 
   return `The target
-The prompt will be answered by ${profile.label} at ${effort} effort${assumed}, with the whole conversation in view. Anthropic's guidance differs by model: wording that helps one model can hurt another, so judge for this model at this effort level. Effort names do not mean the same amount of thinking on different models.
+The prompt will be answered by ${profile.label} at ${effort} effort, with the whole conversation in view. Anthropic's guidance differs by model: wording that helps one model can hurt another, so judge for this model at this effort level. Effort names do not mean the same amount of thinking on different models.
 
 Model notes
 ${profile.notes}

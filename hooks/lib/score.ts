@@ -39,13 +39,3 @@ export function scoreOf(review: Review): number {
 
   return Math.max(0, Math.min(100, Math.round(base - penalty)))
 }
-
-/** How many checks applied and how many passed, for the card's headline. */
-export function tally(review: Review): { applicable: number; passed: number } {
-  const statuses = (Object.keys(CHECK_WEIGHTS) as CheckId[]).map(id => review.checks[id].status)
-
-  return {
-    applicable: statuses.filter(status => status !== 'na').length,
-    passed: statuses.filter(status => status === 'pass').length,
-  }
-}

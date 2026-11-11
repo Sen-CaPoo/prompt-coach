@@ -48,25 +48,32 @@ To try it without installing, clone this repository, run `node scripts/manifest.
 
 | | Coach (default) | Auto |
 | --- | --- | --- |
-| What it does | Shows a card when the score is under the pass score; you decide how to send | Handles the prompt and sends it without asking |
-| Your prompt | Replaced only if you pick the suggested version | **append** (default): not one character changes, and the notes are read by Claude alone. **rewrite**: replaced by the rewritten version when [the conditions](#when-a-rewrite-is-applied-without-asking) hold; otherwise handled as append |
+| What it does | Shows a card when the score is under the pass score; you decide how to send. With no answer in 60 seconds (by default) it is sent as typed | Handles the prompt and sends it without asking |
+| Your prompt | Changed only if you pick the suggested prompt: the rewrite replaces it, or, with notes only, the notes follow your words as part of your message | **append** (default): not one character changes, and the notes are read by Claude alone. **rewrite**: replaced by the rewritten version when [the conditions](#when-a-rewrite-is-applied-without-asking) hold; otherwise handled as append |
 | What it leaves | The card | Dim rows in the transcript: what was attached, or what you originally typed |
 | Switch | `/prompt-coach coach` | `/prompt-coach append` or `/prompt-coach rewrite` |
 
-The card in coach mode (choose with a digit key):
+The card in coach mode (choose with a digit key; the pane's title bar reads Prompt Coach):
 
 ```text
-Prompt Coach · Sonnet 5.5 · effort medium · score 25 (1 of 5 checks passed)
-1: Use the suggested version  2: Send as typed  3: Put it back to edit  4: Cancel  Esc cancels too
+Sonnet 5.5 · effort medium · score 25
+1: Use the suggested prompt  2: Send as typed  3: Put it back to edit  4: Cancel  Esc cancels too
+Sends as typed in 58 s
 
-Reference: "the login thing" names no file; the conversation mentioned src/components/LoginForm.tsx.
-Done criteria: nothing says what counts as done; npm test -- LoginForm came up earlier.
-Missing info: the wording and placement of the error message, which only you know.
-Suggested version
-- fix the login thing
-+ Fix src/components/LoginForm.tsx so that a 401 from the API shows an error message. Then run
-  npm test -- LoginForm. If the wording or placement of the message is unclear, ask me first.
+Tips
+· "the login thing" doesn't say which file; earlier you mentioned src/components/LoginForm.tsx.
+· Nothing says how you'll know it's done; npm test -- LoginForm came up earlier.
+· Nothing says which files may change and which must stay as they are.
+· Only you know what the error message should say and where it should appear.
+Suggested prompt
+Fix src/components/LoginForm.tsx so that a 401 from the API shows an error message. Then run
+npm test -- LoginForm. If the wording or placement of the message is unclear, ask me first.
 ```
+
+- **Tips** say in plain words what is missing and which wording to change, five at most. `/prompt-coach last` has the full detail, low-confidence wording hints included.
+- **Suggested prompt** is exactly what 1 sends. A long prompt, or one holding pasted material, is never rewritten: the suggestion is then your words with the notes after them, and the card shows only the start of your words.
+- Until the session has made a request (the first prompt, after a `/model` switch, after the mod reloads), the mod cannot know the effort level, so the title shows none and no effort advice is given.
+- When the card is drawn in the band above the prompt, its first line starts with "Prompt Coach ·".
 
 Which auto style to pick:
 
@@ -110,6 +117,7 @@ Both builds have the same options and defaults; only the language of the names a
 | `mode` | `coach` | `coach`, `auto` or `off` |
 | `auto_style` | `append` | `append` or `rewrite` |
 | `pass_score` | `85` | In coach mode, a prompt scoring at least this is sent without asking |
+| `auto_send_seconds` | `60` | A coach card with no answer for this many seconds sends the prompt as typed, counting down on the card. `0` turns it off (the card is cancelled after 10 minutes). Applies to the pane and the band; Claude Code's question dialog waits |
 | `backend` | `session` | `session`: Claude Code's own connection (your plan, API key or cloud provider). `api_key`: the Messages API with the key below |
 | `engine` | `fork` | `fork`: the session's model reviews with the whole conversation in view, reusing its prompt cache. `complete`: a separate call that sees a digest |
 | `fork_effort` | `low` | `low`: a fork review asks for low effort, the quickest. `session`: it names no level and runs at the session's; choose this when your model or provider takes effort for a whole request only, where a different level writes the conversation to the prompt cache again on every review |
@@ -132,7 +140,7 @@ flowchart TD
     D -- timeout or failure --> Z
     D --> E[Checks in code<br>quote matching, rewrite guard, scoring]
     E --> F{Mode}
-    F -- coach --> G[Card: 1 apply / 2 as typed / 3 edit / 4 cancel]
+    F -- coach --> G[Card: 1 apply / 2 as typed / 3 edit / 4 cancel<br>sent as typed when the countdown ends]
     F -- auto, append --> H[Your words plus notes only Claude reads]
     F -- auto, rewrite --> J{Rewrite conditions hold?}
     J -- yes --> I[The rewrite; the original is logged]
@@ -193,7 +201,7 @@ Each build's manifest is one of the two entries in `.claude-plugin/marketplace.j
 ```bash
 node scripts/manifest.mjs       # plugin.json for the Traditional Chinese build (English: node scripts/manifest.mjs en); also checks the builds differ in words only
 claude plugin validate .        # manifest and hooks
-claude plugin test .            # 87 tests, run as the Traditional Chinese build
+claude plugin test .            # 94 tests, run as the Traditional Chinese build
 claude --plugin-dir .           # load this folder (the types are written on first load)
 npx -p typescript tsc -p .      # type check
 claude --debug                  # each review leaves a line: [prompt-coach] reviewed ...
@@ -207,6 +215,9 @@ Change an option in both entries at once; `manifest.mjs` stops when their defaul
 - The first fork review of a session sometimes writes the conversation to the cache once more (about 40,000 tokens when measured, while plugins and MCP servers were still loading at startup); after that it only reads. What happens once the cache has expired was not measured.
 - A review that times out sends the prompt as typed, but the fork request already made cannot be cancelled from a mod and may still count toward usage.
 - The card was tested in the terminal (the pane, and the band above the prompt). Where another surface has no room for a pane, Claude Code's own question dialog asks instead; that path has unit tests only and was not tried in VS Code or on mobile. Where there is no interface (`claude -p`, the SDK) coach mode lets the prompt through; auto mode needs no interface and works as usual.
+- The 0.3.0 card layout (tips, suggested prompt, countdown) has unit tests only; it has not been tried in a terminal yet.
+- The countdown applies to the pane and the band only. The question dialog is Claude Code's own; the mod API gives it no timeout and a mod cannot close it, so it waits for your answer.
+- The mod learns the effort level only from the session's last request. Before there is one (the first prompt, after a `/model` switch, after the mod reloads) no effort advice is given.
 - A prompt typed while a turn is running is not reviewed. A prompt sent while a review is under way is queued by Claude Code, so two prompts are never reviewed at once.
 - After a full rewrite, whether Claude Code's marking of pasted content survives cannot be confirmed from the mod's side. Use append if that matters to you.
 - The `api_key` backend was verified for its request format and for failing open, not for a successful call with a real key.

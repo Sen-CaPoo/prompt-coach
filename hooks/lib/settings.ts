@@ -41,6 +41,7 @@ export function readSettings(options: PluginOptions | undefined): Settings {
     minChars: numberIn(o.min_chars, 0, 2000, 8),
     forkMaxTokens: numberIn(o.fork_max_tokens, 1000, 2_000_000, 200_000),
     isHeadlessIncluded: o.headless === true,
+    autoSendMs: Math.round(numberIn(o.auto_send_seconds, 0, 600, 60)) * 1000,
   }
 }
 

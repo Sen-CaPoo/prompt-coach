@@ -175,7 +175,9 @@ describe('auto mode, append', () => {
     const calls = world(on, { model: 'claude-opus-5-5[1m]' })
     await $.prompt.submit(typed(PROMPT))
 
-    expect(calls.asked[0]).toContain('Opus 5.5 at medium effort')
+    expect(calls.asked[0]).toContain('answered by Opus 5.5')
+    // No request has been made yet, so the effort level is not stated as if it were known.
+    expect(calls.asked[0]).toContain('not known yet')
   })
 })
 
@@ -210,7 +212,7 @@ describe('auto mode, rewrite', () => {
     expect(sent.context?.length).toBe(1)
     // The rewrite itself was sound: it is kept for the person to read.
     const last = (await $.command.run(command('last'))).text ?? ''
-    expect(last).toContain(`建議版本：${kept}`)
+    expect(last).toContain(`建議提示詞：${kept}`)
     expect(last).toContain('原文含有限制或條件')
   })
 
@@ -429,13 +431,31 @@ describe('coach mode, asking through the dialog', () => {
     expect(calls.toasts.length).toBe(1)
   })
 
-  test('where nothing can be waited on, the dialog asks: the suggested version', { options: { mode: 'coach' } }, async ($, on) => {
-    const calls = world(on, { ask: '套用建議版本' })
+  test('where nothing can be waited on, the dialog asks: the suggested prompt', { options: { mode: 'coach' } }, async ($, on) => {
+    const calls = world(on, { ask: '套用建議提示詞' })
     const sent = await $.prompt.submit(typed(PROMPT))
 
     expect(sent.text).toBe(REWRITE)
     // The card's lines are logged above the dialog.
-    expect(calls.logs.join('\n')).toContain('指涉：「登入那邊」沒有指明檔案')
+    expect(calls.logs).toContain('觀念解析')
+    expect(calls.logs).toContain('· 「登入那邊」沒有指明檔案')
+  })
+
+  test('with notes only, the suggested prompt is the prompt with the notes after it, sent as the words typed', { options: { mode: 'coach' } }, async ($, on) => {
+    world(on, { review: { ...REVIEW, rewrite: '' }, ask: '套用建議提示詞' })
+    const sent = await $.prompt.submit(typed(PROMPT))
+
+    expect(sent.text).toBe(`${PROMPT}\n\nsrc/components/LoginForm.tsx\nnpm test -- LoginForm\n錯誤訊息的文字沒有指定，會影響做法時先問`)
+    expect(sent.context).toBeUndefined()
+  })
+
+  test('before an effort level is seen, effort advice is neither asked for nor shown', { options: { mode: 'coach' } }, async ($, on) => {
+    const calls = world(on, { review: { ...REVIEW, effort: { advice: 'raise', why: '這是大改動' } } })
+    await $.prompt.submit(typed(PROMPT))
+
+    expect(calls.asked[0]).toContain('not known yet')
+    expect(calls.logs.join('\n')).not.toContain('effort 建議')
+    expect((await $.command.run(command('last'))).text).not.toContain('這是大改動')
   })
 
   test('the dialog: send as typed', { options: { mode: 'coach' } }, async ($, on) => {
@@ -449,7 +469,7 @@ describe('coach mode, asking through the dialog', () => {
   test('the dialog: put it back to edit, and the edited prompt goes through once', { options: { mode: 'coach' } }, async ($, on) => {
     const calls = world(on, { ask: '放回輸入框修改' })
     const sent = await $.prompt.submit(typed(PROMPT))
-    expect(sent.drop).toContain('建議版本已放進輸入框')
+    expect(sent.drop).toContain('建議提示詞已放進輸入框')
 
     // The draft lands in the box just after the engine has put the original back.
     await calls.clock.advance(300)

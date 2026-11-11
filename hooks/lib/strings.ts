@@ -4,8 +4,12 @@ import type { AdditionKind, CheckId, Language } from './types'
  * Every word the person reads, in each interface language.
  *
  * Claude Code heads a plugin's transcript rows, toasts and command output
- * with the plugin's name, so those strings do not repeat it. The card, the
- * dialog question and a drop notice are shown bare, so they name the coach.
+ * with the plugin's name, and a pane with the title it is opened with, so
+ * those strings do not repeat it. The card in the band, the dialog question
+ * and a drop notice are shown bare, so they name the coach.
+ *
+ * What the card says is for anyone who writes prompts: plain words, no review
+ * terms. `/prompt-coach last` keeps the review's own terms for those who want them.
  *
  * The names and descriptions of the settings are not here: each build's
  * marketplace entry carries them in its own language.
@@ -17,19 +21,26 @@ export type Strings = {
   reviewing: string
   checks: Record<CheckId, string>
   additions: Record<AdditionKind, string>
-  cardTitle: (model: string, effort: string, score: number, passed: number, applicable: number) => string
-  effortAssumed: string
+  scoreLabel: (score: number) => string
+  /** A label and its text, with the colon of the language. */
+  labelled: (label: string, text: string) => string
+  tipsLabel: string
+  /** Said for a failed check whose note came back empty. */
+  checkHints: Record<CheckId, string>
+  tipFinding: (evidence: string, why: string, suggestion: string) => string
+  tipsMore: (count: number) => string
   findingsLabel: string
-  notesLabel: string
-  suggestedLabel: string
+  promptLabel: string
+  keptRest: string
   effortLower: string
   effortRaise: string
-  applyRewrite: string
-  applyNotes: string
+  applyPrompt: string
   sendOriginal: string
   editInBox: string
   cancel: string
   escHint: string
+  autoSendIn: (seconds: number) => string
+  autoSent: (seconds: number) => string
   askQuestion: (score: number) => string
   clean: (score: number) => string
   passed: (score: number) => string
@@ -54,6 +65,11 @@ export type Strings = {
   unknownModel: string
 }
 
+/** Text ending as a sentence: the stop is added where the model left none. */
+function sentence(text: string, stop: string): string {
+  return /[。！？.!?」』）)"'…]$/.test(text) ? text : `${text}${stop}`
+}
+
 const zhTW: Strings = {
   name: '提示詞教練',
   commandDescription: '提示詞教練：切換模式（coach／auto／off）、自動模式的做法（append／rewrite），或查看狀態與上一次的評審',
@@ -61,20 +77,34 @@ const zhTW: Strings = {
   reviewing: '評審這則 prompt 中…',
   checks: { goal: '目標', done: '完成標準', reference: '指涉', scope: '範圍', context: '缺資訊' },
   additions: { target: '對象', symptom: '問題', verify: '驗證', ask_first: '先問' },
-  cardTitle: (model, effort, score, passed, applicable) =>
-    `提示詞教練 · ${model} · effort ${effort} · ${score} 分（${applicable} 項適用，${passed} 項通過）`,
-  effortAssumed: '（effort 為預設值，這個 session 還沒送過請求）',
+  scoreLabel: score => `${score} 分`,
+  labelled: (label, text) => `${label}：${text}`,
+  tipsLabel: '觀念解析',
+  checkHints: {
+    goal: '沒有說清楚要做什麼。',
+    done: '沒有說怎樣算完成。',
+    reference: '提到的東西沒有指明是哪一個。',
+    scope: '沒有說哪些地方可以改、哪些不能動。',
+    context: '少了只有你知道的資訊。',
+  },
+  tipFinding: (evidence, why, suggestion) =>
+    `${evidence === '' ? '' : `「${evidence}」這句：`}${[why, suggestion]
+      .filter(part => part !== '')
+      .map(part => sentence(part, '。'))
+      .join('')}`,
+  tipsMore: count => `另有 ${count} 項，用 /prompt-coach last 查看`,
   findingsLabel: '寫法',
-  notesLabel: '可補充',
-  suggestedLabel: '建議版本',
+  promptLabel: '建議提示詞',
+  keptRest: '（原文其餘不變）',
   effortLower: 'effort 建議調低',
   effortRaise: 'effort 建議調高',
-  applyRewrite: '套用建議版本',
-  applyNotes: '附加補充後送出',
+  applyPrompt: '套用建議提示詞',
   sendOriginal: '用原文送出',
   editInBox: '放回輸入框修改',
   cancel: '取消送出',
   escHint: 'Esc 也可以取消',
+  autoSendIn: seconds => `${seconds} 秒後自動用原文送出`,
+  autoSent: seconds => `${seconds} 秒沒有回應，已用原文送出`,
   askQuestion: score => `提示詞教練給這則 ${score} 分，要怎麼送出？`,
   clean: score => `這則沒問題（${score} 分）`,
   passed: score => `${score} 分，已送出`,
@@ -85,7 +115,7 @@ const zhTW: Strings = {
   rewriteRefused: reason => `沒有採用改寫版（${reason}）`,
   hintsLeft: count => `另有 ${count} 項建議沒有套用，用 /prompt-coach last 查看`,
   dropCancelled: '提示詞教練：已取消送出，原文在輸入框裡',
-  dropEdit: '提示詞教練：建議版本已放進輸入框，改完按 Enter 送出',
+  dropEdit: '提示詞教練：建議提示詞已放進輸入框，改完按 Enter 送出',
   dropBusy: '提示詞教練：上一則還在處理，這則已放回輸入框，請稍候再送',
   refusal: {
     none: '評審沒有提出改寫',
@@ -114,8 +144,9 @@ const zhTW: Strings = {
     passed: '直接送出',
     appended: '已附加補充',
     rewrote: '已自動改寫',
-    applied: '你選了建議版本',
+    applied: '你選了建議提示詞',
     original: '你選了原文',
+    'auto-sent': '沒有回應，自動用原文送出',
     edit: '你選了放回輸入框',
     cancelled: '你取消了送出',
     skipped: '沒有評審',
@@ -130,20 +161,34 @@ const en: Strings = {
   reviewing: 'reviewing this prompt…',
   checks: { goal: 'Goal', done: 'Done criteria', reference: 'Reference', scope: 'Scope', context: 'Missing info' },
   additions: { target: 'Target', symptom: 'Problem', verify: 'Check', ask_first: 'Ask first' },
-  cardTitle: (model, effort, score, passed, applicable) =>
-    `Prompt Coach · ${model} · effort ${effort} · score ${score} (${passed} of ${applicable} checks passed)`,
-  effortAssumed: '(effort is the default level: this session has made no request yet)',
+  scoreLabel: score => `score ${score}`,
+  labelled: (label, text) => `${label}: ${text}`,
+  tipsLabel: 'Tips',
+  checkHints: {
+    goal: "It doesn't say what to do.",
+    done: "It doesn't say what counts as done.",
+    reference: 'It refers to something without saying which one.',
+    scope: "It doesn't say what may change and what must stay as it is.",
+    context: 'Something only you know is missing.',
+  },
+  tipFinding: (evidence, why, suggestion) =>
+    `${evidence === '' ? '' : `"${evidence}": `}${[why, suggestion]
+      .filter(part => part !== '')
+      .map(part => sentence(part, '.'))
+      .join(' ')}`,
+  tipsMore: count => `${count} more; see /prompt-coach last`,
   findingsLabel: 'Wording',
-  notesLabel: 'Could add',
-  suggestedLabel: 'Suggested version',
+  promptLabel: 'Suggested prompt',
+  keptRest: '(the rest as typed)',
   effortLower: 'Consider a lower effort level',
   effortRaise: 'Consider a higher effort level',
-  applyRewrite: 'Use the suggested version',
-  applyNotes: 'Send with the notes attached',
+  applyPrompt: 'Use the suggested prompt',
   sendOriginal: 'Send as typed',
   editInBox: 'Put it back to edit',
   cancel: 'Cancel',
   escHint: 'Esc cancels too',
+  autoSendIn: seconds => `Sends as typed in ${seconds} s`,
+  autoSent: seconds => `No answer in ${seconds} s; sent as typed`,
   askQuestion: score => `Prompt Coach scored this ${score}. How should it be sent?`,
   clean: score => `Nothing to change (${score})`,
   passed: score => `Scored ${score}; sent`,
@@ -154,7 +199,7 @@ const en: Strings = {
   rewriteRefused: reason => `The rewrite was not used (${reason})`,
   hintsLeft: count => `${count} more suggestion${count === 1 ? ' was' : 's were'} not applied; see /prompt-coach last`,
   dropCancelled: 'Prompt Coach: not sent; your prompt is back in the box',
-  dropEdit: 'Prompt Coach: the suggested version is in the box; edit it and press Enter',
+  dropEdit: 'Prompt Coach: the suggested prompt is in the box; edit it and press Enter',
   dropBusy: 'Prompt Coach: still working on the previous prompt; this one is back in the box, send it again in a moment',
   refusal: {
     none: 'the review proposed none',
@@ -183,8 +228,9 @@ const en: Strings = {
     passed: 'sent as typed',
     appended: 'notes attached',
     rewrote: 'rewritten automatically',
-    applied: 'you chose the suggested version',
+    applied: 'you chose the suggested prompt',
     original: 'you chose your own wording',
+    'auto-sent': 'no answer; sent as typed',
     edit: 'you put it back to edit',
     cancelled: 'you cancelled',
     skipped: 'not reviewed',

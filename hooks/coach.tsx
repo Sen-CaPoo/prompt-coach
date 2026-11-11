@@ -3,7 +3,7 @@ import type { EngineInterface, On, PluginOptions } from 'claude-code'
 import { resolveProfile, resolveReviewModel } from '../rules/index'
 import type { ModelProfile } from '../rules/index'
 import type { Override } from '../types'
-import { cardLines, cardRows, drawCard, primaryAction } from './lib/card'
+import { cardLines, cardRows, drawCard, primaryAction, suggestedPrompt } from './lib/card'
 import type { Decision, Held } from './lib/card'
 import { isBehindGateway, reviewByApi, reviewByComplete, reviewByFork } from './lib/engine'
 import type { ReviewReply } from './lib/engine'
@@ -36,6 +36,7 @@ import { pause } from './lib/wait'
 
 const PANE = 'prompt-coach'
 const COMMAND = 'prompt-coach'
+/** How long a card waits when no countdown is set (`auto_send_seconds` 0): then nothing is sent. */
 const HOLD_LIMIT_MS = 10 * 60 * 1000
 /** How long "the next prompt goes through" stands after the draft was put back to edit. */
 const EDIT_PASS_MS = 10 * 60 * 1000
@@ -218,11 +219,10 @@ async function askByDialog($: EngineInterface, mine: Held, s: Strings): Promise<
     cardLines(mine, s).map(line => line.text),
   )
   const action = primaryAction(mine.outcome)
-  const apply = action === 'rewrite' ? s.applyRewrite : s.applyNotes
-  const choices = action === 'none' ? [s.sendOriginal, s.editInBox] : [apply, s.sendOriginal, s.editInBox]
+  const choices = action === 'none' ? [s.sendOriginal, s.editInBox] : [s.applyPrompt, s.sendOriginal, s.editInBox]
   try {
     const answer = await $.ui.ask(s.askQuestion(mine.outcome.score), choices)
-    if (answer === apply && action !== 'none') {
+    if (answer === s.applyPrompt && action !== 'none') {
       return 'apply'
     }
     if (answer === s.sendOriginal) {
@@ -240,6 +240,9 @@ async function askByDialog($: EngineInterface, mine: Held, s: Strings): Promise<
 /**
  * Shows the card and waits for the person: a pane where the surface places
  * one, else the band above the prompt, else the engine's dialog.
+ *
+ * With `autoSendMs` set, the pane and the band count down and then send the
+ * prompt as typed. The dialog waits for its answer: a mod cannot close it.
  */
 async function holdForDecision(
   $: EngineInterface,
@@ -247,18 +250,22 @@ async function holdForDecision(
   mine: Held,
   s: Strings,
   surface: string | null,
+  autoSendMs: number,
 ): Promise<Decision> {
   let isOpened = false
   try {
     if (!(await pause($))) {
       return await askByDialog($, mine, s)
     }
+    if (autoSendMs > 0) {
+      mine.secondsLeft = Math.ceil(autoSendMs / 1000)
+    }
     const opened = await $.ui.open({
       id: PANE,
       title: s.name,
       focus: true,
       closeOnEscape: true,
-      rows: Math.min(24, cardRows(cardLines(mine, s), 92)),
+      rows: Math.min(24, cardRows(cardLines(mine, s), 92, mine.secondsLeft !== undefined)),
     })
     isOpened = true
     if (!opened.isPlaced) {
@@ -276,12 +283,24 @@ async function holdForDecision(
         mine.decision = 'interrupted'
         break
       }
-      if ((await $.clock.now()) - startedAt > HOLD_LIMIT_MS) {
+      const waited = (await $.clock.now()) - startedAt
+      if (autoSendMs > 0) {
+        if (waited >= autoSendMs) {
+          mine.decision = 'auto-sent'
+          break
+        }
+        const secondsLeft = Math.ceil((autoSendMs - waited) / 1000)
+        if (secondsLeft !== mine.secondsLeft) {
+          mine.secondsLeft = secondsLeft
+          $.ui.invalidate('ui.render')
+        }
+      } else if (waited > HOLD_LIMIT_MS) {
         mine.decision = 'timeout'
         break
       }
       // A band the person has folded away shows nothing: ask in the dialog instead.
       if (mine.where === 'band' && mine.isBandCollapsed) {
+        mine.secondsLeft = undefined
         mine.decision = await askByDialog($, mine, s)
         break
       }
@@ -332,7 +351,7 @@ function describeLast(outcome: Outcome, s: Strings): string {
     lines.push(`· ${s.additions[addition.kind]}：${addition.text}`)
   }
   if (outcome.rewrite !== '') {
-    lines.push(`${s.suggestedLabel}：${outcome.rewrite}`)
+    lines.push(`${s.promptLabel}：${outcome.rewrite}`)
   }
   if (outcome.rewriteRefused !== '' && outcome.rewriteRefused !== 'none') {
     lines.push(s.rewriteRefused(refusalText(s, outcome.rewriteRefused)))
@@ -482,6 +501,11 @@ export function coach(on: On, pluginOptions: PluginOptions): void {
 
         return await next(e)
       }
+      // The reviewer was told the effort level is unknown and to give no advice;
+      // advice it gives anyway was judged against a guess, so it is dropped here.
+      if (effort === undefined) {
+        review.effort = { advice: 'keep', why: '' }
+      }
 
       const haystack = haystackOf(rows)
       const verdict = view.isRewritable
@@ -556,26 +580,27 @@ export function coach(on: On, pluginOptions: PluginOptions): void {
       const modelLabel = profile.id === 'generic' ? model : profile.label
       const mine: Held = { outcome, modelLabel, where: 'pane', decision: null, isBandCollapsed: false }
       held = mine
-      const decision = await holdForDecision($, next.signal, mine, s, surface)
+      const decision = await holdForDecision($, next.signal, mine, s, surface, settings.autoSendMs)
+      // What the card showed under its label: the rewrite, or the prompt with the notes after it.
+      const draft = suggestedPrompt(outcome)
 
       if (decision === 'apply') {
         outcome.action = 'applied'
-        if (outcome.rewrite !== '') {
-          return await next({ ...e, text: outcome.rewrite })
-        }
 
-        return await next({ ...e, context: [...(e.context ?? []), contextBlock(outcome.additions)] })
+        return await next({ ...e, text: draft })
       }
-      if (decision === 'original') {
-        outcome.action = 'original'
+      if (decision === 'original' || decision === 'auto-sent') {
+        outcome.action = decision === 'original' ? 'original' : 'auto-sent'
+        if (decision === 'auto-sent') {
+          $.ui.toast(s.autoSent(Math.round(settings.autoSendMs / 1000)))
+        }
 
         return await next(e)
       }
       if (decision === 'edit') {
         outcome.action = 'edit'
         passNextUntil = (await $.clock.now()) + EDIT_PASS_MS
-        if (outcome.rewrite !== '') {
-          const draft = outcome.rewrite
+        if (draft !== '') {
           // The engine puts a dropped prompt back in the box; the draft replaces it
           // just after, unless the person has already typed something else there.
           $.clock.after(200, () => {
@@ -588,7 +613,7 @@ export function coach(on: On, pluginOptions: PluginOptions): void {
           })
         }
 
-        return { drop: outcome.rewrite !== '' ? s.dropEdit : s.dropCancelled }
+        return { drop: draft !== '' ? s.dropEdit : s.dropCancelled }
       }
       outcome.action = 'cancelled'
       cancelledText = text

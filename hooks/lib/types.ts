@@ -22,6 +22,8 @@ export type Settings = {
   minChars: number
   forkMaxTokens: number
   isHeadlessIncluded: boolean
+  /** A card left unanswered this long sends the prompt as typed; 0 waits for an answer. */
+  autoSendMs: number
 }
 
 export type CheckId = 'goal' | 'done' | 'reference' | 'scope' | 'context'
@@ -107,6 +109,6 @@ export type Outcome = {
   rewrite: string
   /** Why a rewrite the reviewer proposed was not used. */
   rewriteRefused: string
-  action: 'passed' | 'appended' | 'rewrote' | 'applied' | 'original' | 'edit' | 'cancelled' | 'skipped'
+  action: 'passed' | 'appended' | 'rewrote' | 'applied' | 'original' | 'auto-sent' | 'edit' | 'cancelled' | 'skipped'
   elapsedMs: number
 }
